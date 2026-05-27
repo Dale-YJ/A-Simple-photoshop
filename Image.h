@@ -6,11 +6,13 @@
 #include<vector>
 #include<string>
 #include<Windows.h>
-
+#include <graphics.h>
+#include <conio.h>
 
 
 using std::vector;
 using std::string;
+
 
 
 class Image {
@@ -67,7 +69,9 @@ public:
     int getbitcount()const {
         return bitcount;
     }
-
+    Type getType() const {
+        return type;
+	}
 
     Image(int w, int h, int bc,Type t)
         : width(w), height(h), bitcount(bc),type(t) {
@@ -83,7 +87,7 @@ public:
     }
 
     //获取像素值
-    int getPixel(int x, int y) const {
+    uint64_t getPixel(int x, int y) const {
         if (!isValid(x, y)) return -1;
 
         size_t i = index(x, y);
@@ -162,6 +166,63 @@ public:
     static int getBlueComponent(uint32_t value) {
         return value &0xff;
     }
+
+
+    // 将自定义 Image 转换为 EasyX 的 IMAGE
+    IMAGE convertToEasyXImage() {
+       
+
+        IMAGE dstImg(width, height);
+
+        // 获取dstImg缓冲区的指针
+        DWORD* pMem = GetImageBuffer(&dstImg);
+
+        // 直接对显示缓冲区赋值
+        for (int i = 0; i < width * height; i++) {
+            //对应该图像的x，y坐标
+            int y = i / width;
+            int x = i % width;
+
+            switch (type) {
+            case Binary:
+            {
+                bool value = getPixel(x, y);
+                if (value) {
+                    pMem[i] = WHITE;
+                }
+                else {
+                    pMem[i] = BLACK;
+                }
+
+                break;
+            }
+                
+            case Gray:
+            {
+                uint8_t value = getPixel(x, y);
+                pMem[i] = RGB(value, value, value);
+                break;
+
+            }
+               
+            case Color:
+            {
+                uint32_t value = getPixel(x, y);
+
+                pMem[i] = RGB(getRedComponent(value), getGreenComponent(value), getBlueComponent(value));
+
+                break;
+
+            }
+               
+            }
+
+
+        }
+        return dstImg;
+
+    }
+
 
 };
 

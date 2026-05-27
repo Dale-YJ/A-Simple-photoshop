@@ -1,15 +1,19 @@
-#include<iostream>
+ï»¿#include<iostream>
 #include"Image.h"
 
+#include"UI.h"
 
-#include <graphics.h>		// ÒıÓÃÍ¼ĞÎ¿âÍ·ÎÄ¼ş
-#include <conio.h>
+
+
+
+
+
 int main()
 {
-	
-	initgraph(640, 480);	// ´´½¨»æÍ¼´°¿Ú£¬´óĞ¡Îª 640x480 ÏñËØ
-	circle(200, 200, 100);	// »­Ô²£¬Ô²ĞÄ(200, 200)£¬°ë¾¶ 100
-	_getch();				// °´ÈÎÒâ¼ü¼ÌĞø
-	closegraph();			// ¹Ø±Õ»æÍ¼´°¿Ú
-	return 0;
+    Widget widget(1000, 600);
+    widget.init();
+    widget.run();
+    widget.close();
+    return 0;
 }
+

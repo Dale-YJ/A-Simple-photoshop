@@ -1,0 +1,528 @@
+#pragma once
+#include <graphics.h>
+#include <conio.h>
+#include <windows.h>
+#include <string>
+#include <functional>
+
+#include "Image.h"
+#include "BMPIO.h"
+#include "CropSlice.h"
+#include "EnDecoding.h"
+#include "ModeConvert.h"
+#include "Enhancement.h"
+using namespace std;
+
+
+
+
+//打开一个文件对话框，返回选择bmp文件的路径
+string OpenFileDialog() {
+    char filePath[MAX_PATH] = { 0 };
+
+    OPENFILENAMEA ofn;   // 使用 ANSI 版本，避免字符集问题
+    ZeroMemory(&ofn, sizeof(ofn));
+
+    ofn.lStructSize = sizeof(ofn);
+    //ofn.hwndOwner = GetHWnd();   // 绑定到 EasyX 窗口
+    ofn.lpstrFilter = "BMP Files (*.bmp)\0*.bmp\0";
+    ofn.lpstrFile = filePath;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+    ofn.lpstrTitle = "选择 BMP 文件";
+
+    if (GetOpenFileNameA(&ofn)) {
+        return string(filePath);  // 返回 string 类型路径
+    }
+    return "";  // 用户点击了“取消”
+}
+
+
+
+// 定义Button类，表示一个按钮
+class Button
+{
+private:
+    int x; // 按钮左上角x坐标
+    int y; // 按钮左上角y坐标
+    int width; // 按钮宽度
+    int height; // 按钮高度
+    float scale; // 缩放比例，用于实现鼠标悬停效果
+    bool isMouseOver; // 表示鼠标是否在按钮上方
+    wstring text; // 按钮文本
+    function<void()> onClick; // 点击按钮触发的函数
+    
+public:
+
+    Button(int _x, int _y, int _width, int _height, const wstring& _text, const function<void()>& _onClick=[](){})
+		: x(_x), y(_y), width(_width), height(_height), text(_text), scale(1.0f), isMouseOver(false), onClick(_onClick)
+    {}
+
+    // 检查鼠标是否在按钮上方
+    bool checkMouseOver(int mouseX, int mouseY)
+    {
+        isMouseOver = (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height);
+
+        if (isMouseOver) {
+            scale = 0.9f; // 鼠标悬停时缩放按钮
+        }
+        else {
+            scale = 1.0f; // 恢复按钮原始大小
+        }
+		return isMouseOver;
+
+    }
+
+    // 检查鼠标点击是否在按钮内，并执行函数
+    bool checkClick(int mouseX, int mouseY)
+    {
+        if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height)
+        {
+            onClick(); // 执行按钮点击时的函数
+            isMouseOver = false;
+            scale = 1.0f;
+            return true;
+        }
+        return false;
+    }
+
+    // 绘制按钮
+    void draw()
+    {
+        int scaledWidth = width * scale; // 缩放后的按钮宽度
+        int scaledHeight = height * scale; // 缩放后的按钮高度
+        int scaledX = x + (width - scaledWidth) / 2; // 缩放后的按钮x坐标
+        int scaledY = y + (height - scaledHeight) / 2; // 缩放后的按钮y坐标
+
+        if (isMouseOver)
+        {
+            setlinecolor(RGB(0, 120, 215)); // 鼠标悬停时按钮边框颜色
+            setfillcolor(RGB(229, 241, 251)); // 鼠标悬停时按钮填充颜色
+        }
+        else
+        {
+            setlinecolor(RGB(173, 173, 173)); // 按钮边框颜色
+            setfillcolor(RGB(225, 225, 225)); // 按钮填充颜色
+        }
+
+        fillrectangle(scaledX, scaledY, scaledX + scaledWidth, scaledY + scaledHeight); // 绘制按钮
+        settextcolor(BLACK); // 设置文本颜色为黑色
+        setbkmode(TRANSPARENT); // 设置文本背景透明
+        settextstyle(20 * scale, 0, _T("微软雅黑")); // 设置文本大小和字体
+        //居中显示按钮文本
+        int textX = scaledX + (scaledWidth - textwidth(text.c_str())) / 2; // 计算文本在按钮中央的x坐标
+        int textY = scaledY + (scaledHeight - textheight(_T("微软雅黑"))) / 2; // 计算文本在按钮中央的y坐标
+        outtextxy(textX, textY, text.c_str()); // 在按钮上绘制文本
+    }
+};
+
+//定义一个tab类(选项卡)，表示一个选项列表，可以用于显示多个选项并让用户选择其中一个
+class Tab {
+private:
+	int count;// 选项数量
+    bool isExpanded = false; // 是否展开选项列表
+    vector<wstring> options; // 存储选项文本内容的向量
+    int selectedOption = 0; // 当前选中的选项文本
+    //选项列表关闭时显示选中的选项文本，选项列表展开时显示所有选项文本
+
+    int x; // 左上角x坐标
+    int y; // 左上角y坐标
+    int width; // 每一个选项的宽度
+    int height; // 每一个选项的高度
+
+    bool isMouseOver = false; // 表示鼠标是否在按钮上方
+    int hoveredOptionIndex = -1; // 当前鼠标悬停的选项索引
+
+public:
+
+
+
+    Tab(int choiceCount, const vector<wstring>& options, int _x, int _y, int _width, int _height)
+        :count(choiceCount), options(options), x(_x), y(_y), width(_width), height(_height)
+    {
+    }
+
+    bool checkMouseOver(int mouseX, int mouseY)
+    {
+        //如果选项卡没有展开，检查鼠标是否在选项卡上方
+        if (!isExpanded) {
+            isMouseOver = (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height);
+        }
+        //如果选项卡展开，检查鼠标在哪一个选项上方
+        else {
+            isMouseOver = (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height * (count + 1));
+            if (isMouseOver) {
+                mouseY -= y; //将鼠标y坐标转换为相对于选项列表的坐标
+                int optionHeight = height; //每个选项的高度
+                hoveredOptionIndex = mouseY / optionHeight; //计算鼠标悬停的选项索引
+            }
+            else {
+                hoveredOptionIndex = -1; //没有悬停在任何选项上
+            }
+        }
+        return isMouseOver;
+    }
+
+	//返回当前选中的选项索引
+    int returnSelectedOption() {
+        return selectedOption;
+	}
+
+    // 检查鼠标点击是否在标签内
+    bool checkClick(int mouseX, int mouseY)
+    {
+        if (isMouseOver) {
+            if (!isExpanded) {
+                isExpanded = true; //点击选项卡时展开选项列表
+            }
+            else {
+                //如果点击的是选项卡，则关闭选项列表但不改变选中的选项
+                if (hoveredOptionIndex == 0) {
+                    isExpanded = false;
+                }
+                else if (hoveredOptionIndex > 0 && hoveredOptionIndex <= options.size()) {
+                    selectedOption = hoveredOptionIndex - 1; //根据鼠标悬停的选项索引设置选中的选项
+                    isExpanded = false; //点击选项时关闭选项列表
+                }
+
+            }
+            return true;
+        }
+        return false;
+    }
+
+
+
+    // 显示选项并等待用户选择
+    void draw()
+    {
+        // 在这里实现显示选项的逻辑，例如绘制选项列表并处理用户输入
+        // 可以使用按钮或其他交互方式来让用户选择
+
+        //如果选项列表展开，显示所有选项文本；如果选项列表关闭，显示选中的选项文本
+
+        //如果鼠标悬停在当前选择的选项卡上方，改变选项卡的颜色以提供视觉反馈
+        if (isMouseOver && hoveredOptionIndex == 0)
+        {
+            setlinecolor(RGB(0, 120, 215)); // 鼠标悬停时边框颜色
+            setfillcolor(RGB(229, 241, 251)); // 鼠标悬停时填充颜色
+        }
+        else
+        {
+            setlinecolor(RGB(173, 173, 173)); // 按钮边框颜色
+            setfillcolor(RGB(225, 225, 225)); // 按钮填充颜色
+        }
+
+        fillrectangle(x, y, x + width, y + height); // 绘制选择的选项
+
+        settextcolor(BLACK); // 设置文本颜色为黑色
+        setbkmode(TRANSPARENT); // 设置文本背景透明
+        settextstyle(20, 0, _T("微软雅黑")); // 设置文本大小和字体
+        //居中显示按钮文本
+        int textX = x + (width - textwidth(options[selectedOption].c_str())) / 2; // 计算文本在按钮中央的x坐标
+        int textY = y + (height - textheight(_T("微软雅黑"))) / 2; // 计算文本在按钮中央的y坐标
+        outtextxy(textX, textY, options[selectedOption].c_str()); // 在按钮上绘制文本
+
+        //如果选项列表展开，显示所有选项文本
+        if (isExpanded) {
+            for (int i = 0; i < options.size(); i++){
+                if (isMouseOver && hoveredOptionIndex-1 == i)
+                {
+                    setlinecolor(RGB(0, 120, 215)); // 鼠标悬停时边框颜色
+                    setfillcolor(RGB(229, 241, 251)); // 鼠标悬停时填充颜色
+                }
+                else
+                {
+                    setlinecolor(RGB(173, 173, 173)); // 按钮边框颜色
+                    setfillcolor(RGB(225, 225, 225)); // 按钮填充颜色
+                }
+				int optionX = x; //每个选项的x坐标
+				int optionY = y + height * (i + 1); //每个选项的y坐标
+
+                fillrectangle(optionX, optionY, optionX + width, optionY + height); // 绘制选项
+
+                settextcolor(BLACK); // 设置文本颜色为黑色
+                setbkmode(TRANSPARENT); // 设置文本背景透明
+                settextstyle(20, 0, _T("微软雅黑")); // 设置文本大小和字体
+                //居中显示按钮文本
+                int textX = optionX + (width - textwidth(options[i].c_str())) / 2; // 计算文本在按钮中央的x坐标
+                int textY = optionY + (height - textheight(_T("微软雅黑"))) / 2; // 计算文本在按钮中央的y坐标
+                outtextxy(textX, textY, options[i].c_str()); // 在按钮上绘制文本
+            }
+           
+
+        }
+        
+
+
+
+       
+
+       
+    }
+
+
+};
+
+
+
+
+//按钮对应的一堆函数
+class Functions {
+public:
+    Functions() {
+    
+        onClick.push_back(bind(&Functions::func1, this));
+        onClick.push_back(bind(&Functions::func2, this));
+
+	}
+    vector<wstring>name = {L"bmp文件读入",L"bmp文件输出",L"裁减", L"切割", L"gray to binary",
+        L"color to gray", L"直方图均衡", L"指数变换增强", L"对数变换增强", L"无损预测编码", 
+        L"均匀量化", L"DCT变换编码" };
+    
+    vector<function<void()>> onClick; // 点击按钮触发的函数族
+
+    void func1() {
+        Image img;
+        string path = OpenFileDialog();
+        BMPIO::read(path,img);
+        IMAGE t =img.convertToEasyXImage();
+        
+    }
+
+    void func2() {
+		cout << "this is func2" << endl;
+    }
+
+};
+
+
+// 定义Widget类，表示一个简单的图形用户界面
+class Widget
+{
+private:
+    int width; // 宽度
+    int height; // 高度
+    
+	int moduleIndex = 0; // 当前选中的模块索引
+
+	vector<vector<Button*>> modules; // 存储不同选项卡对应的按钮，及不同功能模块对应的按钮
+
+    vector<Button*> buttons; // 存储当前显示页面上的按钮
+	vector<Tab*> tabs; // 存储页面上的选项卡
+   
+    // 给某一个模块上添加一个按钮
+    void addButton(Button* button,int module)
+    {
+		modules[module].push_back(button);
+    }
+	// 在页面上添加一个选项卡
+    void addTab(Tab* tab)
+    {
+        tabs.push_back(tab);
+	}
+
+    
+    // 处理鼠标点击事件
+    void mouseClick(int mouseX, int mouseY)
+    {
+        for(Button* button : buttons)
+        {
+            if (button->checkClick(mouseX, mouseY))
+            {
+                return;
+                // 如果点击了一个按钮，停止检查其他
+            }
+		}
+        for(Tab* tab : tabs)
+        {
+            if(tab->checkClick(mouseX, mouseY))
+            {
+                return; // 如果点击了一个选项卡，停止检查其他选项卡
+			}
+            
+		}
+        
+    }
+
+    // 处理鼠标移动事件
+    void mouseMove(int mouseX, int mouseY)
+    {
+
+        for (Button* button : buttons)
+        {
+            if (button->checkMouseOver(mouseX, mouseY))
+            {
+                return;
+                // 如果悬停在一个按钮，停止检查其他
+            }
+        }
+        for (Tab* tab : tabs)
+        {
+            if (tab->checkMouseOver(mouseX, mouseY))
+            {
+                return; // 如果点击了一个选项卡，停止检查其他选项卡
+            }
+
+        }
+    }
+
+    // 绘制当前页面的内容
+    void draw()
+    {
+        for (Button* button : buttons)
+        {
+            button->draw(); // 绘制当前页面上的所有按钮
+        }
+        for(Tab* tab : tabs)
+        {
+            tab->draw(); // 显示当前页面上的所有选项卡
+		}
+    }
+
+    // 绘制主菜单
+    void drawMainMenu() {
+        
+        cleardevice();
+
+        // 标题
+        //居中显示文本
+        LOGFONT f;
+        gettextstyle(&f);						// 获取当前字体设置
+        f.lfHeight = 48;						// 设置字体高度为 48
+        _tcscpy_s(f.lfFaceName, _T("黑体"));      // 设置字体为“黑体”
+        f.lfQuality = ANTIALIASED_QUALITY;		// 设置输出效果为抗锯齿  
+        settextstyle(&f);						// 设置字体样式
+       
+
+        int textX = (width - textwidth(L"图像处理实验 - 主菜单")) / 2; // 计算文本在按钮中央的x坐标
+        int textY = height / 10;
+        settextcolor(BLACK);
+        outtextxy(textX, textY, L"图像处理实验 - 主菜单");
+
+		// 绘制按钮和选项卡
+        draw();
+
+        // 提示信息
+        settextcolor(BLACK);
+        settextstyle(20, 0, _T("宋体"));
+        textX = (width - textwidth(L"点击右侧选择功能模块，左侧选择具体功能")) / 2;
+        textY = height * 9 / 10;
+        outtextxy(textX, textY, L"点击右侧选择功能模块，左侧选择具体功能");
+       
+    }
+
+
+  
+
+	// 初始化不同模块对应的按钮
+    void initModuleButtons() {
+
+		int buttoncounts[] = { 2, 2, 2, 3, 3 }; //每个模块的按钮数量
+        Functions f; int k = 0;
+        for (int j = 0; j < modules.size(); j++)
+        {
+            // --- 按钮布局逻辑 ---
+            int buttonCount = buttoncounts[j];
+            int buttonWidth = width/10;
+            int buttonHeight = buttonWidth/2;
+            int buttonSpacing = 20; // 按钮之间的垂直间距
+
+            // 计算按钮总高度（所有按钮 + 间距）
+            int totalButtonsHeight = buttonCount * buttonHeight + (buttonCount - 1) * buttonSpacing;
+
+            // 让按钮区域在垂直方向上居中
+            int startY = (height - totalButtonsHeight) / 2;
+
+            // 让按钮在水平方向上处于窗口左边 1/4 处（留出空间给Tab）
+            int startX = width / 8 - buttonWidth / 2; // 放在窗口左边 1/6 处
+
+            for (int i = 0; i < buttonCount; i++)
+            {
+                Button* button = new Button(startX, startY + i * (buttonHeight + buttonSpacing), buttonWidth, buttonHeight, f.name[k++], f.onClick[0]);
+               
+                addButton(button, j);
+            }
+        }
+
+        
+
+    }
+
+
+
+public:
+    Widget(int width, int height)
+        :width(width), height(height)
+    {
+        modules.resize(5);
+    }
+   
+    // 初始化控件，创建图形环境，设置页面和按钮
+    void init()
+    {
+        initgraph(width, height, EX_SHOWCONSOLE);
+        setbkcolor(WHITE);
+        initModuleButtons();
+		
+        /////////////////////////////////////////////////////
+
+        int initwidth = width/8; // 选项卡宽度
+        int initheight = initwidth / 5; // 选项卡高度
+
+        int initx = width * 5 / 6; // 选项卡初始x坐标 
+        int inity = (height - initheight) / 2;; // 选项卡y坐标
+        
+        Tab* tab = new Tab(5, { L"文件处理模块", L"裁剪切割模块", L"模式转换模块", L"图像增强模块" ,L"图像编码模块"},initx, inity, initwidth, initheight);
+        addTab(tab);
+        
+        buttons = modules[moduleIndex];
+
+    }
+
+    // 运行，进入消息循环
+    void run()
+    {
+        ExMessage msg;
+        BeginBatchDraw(); // 开始批量绘制
+
+        while (true)
+        {
+			moduleIndex = tabs[0]->returnSelectedOption(); // 获取当前选中的选项卡索引，根据索引切换显示的按钮
+			buttons = modules[moduleIndex];
+            while (peekmessage(&msg)) // 检查是否有消息
+            {
+                
+                int mouseX = msg.x; // 获取鼠标x坐标
+                int mouseY = msg.y; // 获取鼠标y坐标
+
+                switch (msg.message)
+                {
+                case WM_LBUTTONDOWN: // 鼠标左键按下事件
+                    mouseClick(mouseX, mouseY); // 处理鼠标点击事件
+                    
+                    break;
+                case WM_MOUSEMOVE: // 鼠标移动事件
+                    mouseMove(mouseX, mouseY); // 处理鼠标移动事件
+                  
+                    break;
+                }
+            }
+
+			drawMainMenu(); // 绘制主菜单
+            
+            FlushBatchDraw(); // 将缓冲区内容显示在屏幕上
+            Sleep(1000/60);
+        }
+
+        EndBatchDraw(); // 结束批量绘制
+    }
+   
+    // 关闭
+    void close()
+    {
+        closegraph(); // 关闭图形环境
+    }
+};
+
+
