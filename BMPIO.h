@@ -11,6 +11,7 @@
 
 #pragma once
 #include "Image.h"
+#include <string>
 
 class BMPIO {
 public:
