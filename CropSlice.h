@@ -10,6 +10,10 @@
 */
 #pragma once
 #include "Image.h"
+#include <vector>  
+
+using std::vector;
+
 
 class CropSlice {
 
