@@ -2,6 +2,7 @@
 #include <graphics.h>
 #include <conio.h>
 #include <windows.h>
+#include <shlobj.h>
 #include <string>
 #include <functional>
 
@@ -24,7 +25,7 @@ string OpenFileDialog() {
     ZeroMemory(&ofn, sizeof(ofn));
 
     ofn.lStructSize = sizeof(ofn);
-    //ofn.hwndOwner = GetHWnd();   // 绑定到 EasyX 窗口
+   
     ofn.lpstrFilter = "BMP Files (*.bmp)\0*.bmp\0";
     ofn.lpstrFile = filePath;
     ofn.nMaxFile = MAX_PATH;
@@ -36,13 +37,28 @@ string OpenFileDialog() {
     }
     return "";  // 用户点击了“取消”
 }
+//打开文件对话框，但是这个用于选择文件夹
 
+string OpenFolderDialog() {
+    char folderPath[MAX_PATH] = { 0 };
+    BROWSEINFOA  bi;
+    ZeroMemory(&bi, sizeof(bi));
+    bi.lpszTitle = "选择文件夹";
+    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+    LPITEMIDLIST pidl = SHBrowseForFolderA(&bi);
+    if (pidl != nullptr) {
+        SHGetPathFromIDListA(pidl, folderPath);
+        CoTaskMemFree(pidl);  // 释放内存
+        return string(folderPath);  // 返回 string 类型路径
+    }
+    return "";  // 用户点击了“取消”
+}
 
 
 // 定义Button类，表示一个按钮
 class Button
 {
-private:
+protected:
     int x; // 按钮左上角x坐标
     int y; // 按钮左上角y坐标
     int width; // 按钮宽度
@@ -50,11 +66,11 @@ private:
     float scale; // 缩放比例，用于实现鼠标悬停效果
     bool isMouseOver; // 表示鼠标是否在按钮上方
     wstring text; // 按钮文本
-    function<void()> onClick; // 点击按钮触发的函数
+    function<void*(void*)> onClick; // 点击按钮触发的函数
     
 public:
 
-    Button(int _x, int _y, int _width, int _height, const wstring& _text, const function<void()>& _onClick=[](){})
+    Button(int _x, int _y, int _width, int _height, const wstring& _text, const function<void*(void*)>& _onClick=[](void* img){return nullptr; })
 		: x(_x), y(_y), width(_width), height(_height), text(_text), scale(1.0f), isMouseOver(false), onClick(_onClick)
     {}
 
@@ -73,17 +89,37 @@ public:
 
     }
 
+
+    int getX() {
+        return x;
+    }
+    int getY() {
+        return y;
+    }
+    int getHeight() {
+		return height;
+    }
+
+    int getWidth() {
+		return width;
+    }
+
+    void setOnclick(function<void* (void*)> _onClick) {
+
+		onClick = _onClick;
+    }
+
     // 检查鼠标点击是否在按钮内，并执行函数
-    bool checkClick(int mouseX, int mouseY)
+    void* checkClick(int mouseX, int mouseY,void*img=nullptr)
     {
         if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height)
         {
-            onClick(); // 执行按钮点击时的函数
-            isMouseOver = false;
-            scale = 1.0f;
-            return true;
+            void* res=onClick(img); // 执行按钮点击时的函数
+            //isMouseOver = false;
+            //scale = 1.0f;
+            return res;
         }
-        return false;
+        return nullptr;
     }
 
     // 绘制按钮
@@ -116,6 +152,66 @@ public:
     }
 };
 
+
+//定义一个TextureButton类
+class TextureButton : public Button {
+private:
+	IMAGE* texture; // 按钮纹理，可以是一个图片
+public:
+    TextureButton(int _x, int _y, int _width, int _height, IMAGE* texture, const wstring& _text=L"", const function<void* (void*)>& _onClick = [](void* img) {return nullptr; })
+		: Button(_x, _y, _width, _height, _text, _onClick), texture(texture)
+	{
+	}
+    
+
+    // 检查鼠标点击是否在按钮内，并执行函数
+    bool checkClick(int mouseX, int mouseY, void* img = nullptr)
+    {
+        if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height)
+        {
+            onClick(img); // 执行按钮点击时的函数
+            //isMouseOver = false;
+            //scale = 1.0f;
+            return true;
+        }
+        return false;
+    }
+
+    // 绘制按钮
+    void draw()
+    {
+        int scaledWidth = width * scale; // 缩放后的按钮宽度
+        int scaledHeight = height * scale; // 缩放后的按钮高度
+        int scaledX = x + (width - scaledWidth) / 2; // 缩放后的按钮x坐标
+        int scaledY = y + (height - scaledHeight) / 2; // 缩放后的按钮y坐标
+
+        if (isMouseOver)
+        {
+            setlinecolor(RGB(0, 120, 215)); // 鼠标悬停时按钮边框颜色
+            setfillcolor(RGB(229, 241, 251)); // 鼠标悬停时按钮填充颜色
+        }
+        else
+        {
+            setlinecolor(RGB(173, 173, 173)); // 按钮边框颜色
+            setfillcolor(RGB(225, 225, 225)); // 按钮填充颜色
+        }
+
+        fillrectangle(scaledX, scaledY, scaledX + scaledWidth, scaledY + scaledHeight); // 绘制按钮
+       
+		//方法1：使用双三次插值缩放图像，质量差
+        //IMAGE* res = Image::resizeImageBicubic(texture, scaledWidth - 10, scaledHeight - 10); // 使用双三次插值缩放图像
+        //putimage(scaledX + 5, scaledY + 5, res); // 在指定位置绘制图像
+        
+		//方法2：使用简单缩放方法缩放图像，质量好
+		IMAGE res2 = Image::resize(texture, scaledWidth - 10, scaledHeight - 10); // 使用简单缩放方法缩放图像 
+        putimage(scaledX + 5, scaledY + 5, &res2); // 在指定位置绘制图像
+     
+
+
+    }
+};
+
+
 //定义一个tab类(选项卡)，表示一个选项列表，可以用于显示多个选项并让用户选择其中一个
 class Tab {
 private:
@@ -135,7 +231,19 @@ private:
 
 public:
 
+    int getX() {
+        return x;
+    }
 
+    int getY() {
+        return y;
+	}
+    int getHeight() {
+        return height;
+	}
+    int getWidth() {
+        return width;
+    }
 
     Tab(int choiceCount, const vector<wstring>& options, int _x, int _y, int _width, int _height)
         :count(choiceCount), options(options), x(_x), y(_y), width(_width), height(_height)
@@ -272,28 +380,141 @@ class Functions {
 public:
     Functions() {
     
-        onClick.push_back(bind(&Functions::func1, this));
-        onClick.push_back(bind(&Functions::func2, this));
+        //onClick.push_back(bind(&Functions::func1, this));
+        onClick.push_back(func1);
+        onClick.push_back(func2);
+        onClick.push_back(func3);
+        onClick.push_back(func4);
+        onClick.push_back(func5);
+        onClick.push_back(func6);
+        onClick.push_back(func7);
+        onClick.push_back(func8);
+        onClick.push_back(func9);
+        onClick.push_back(func10);
+        onClick.push_back(func11);
+        onClick.push_back(func12);
+        onClick.push_back(func13);
 
 	}
     vector<wstring>name = {L"bmp文件读入",L"bmp文件输出",L"裁减", L"切割", L"gray to binary",
         L"color to gray", L"直方图均衡", L"指数变换增强", L"对数变换增强", L"无损预测编码", 
         L"均匀量化", L"DCT变换编码" };
     
-    vector<function<void()>> onClick; // 点击按钮触发的函数族
+    vector<function<void*(void*)>> onClick; // 点击按钮触发的函数族
 
-    void func1() {
-        Image img;
+    //bmp文件读入
+    static void* func1(void*image=nullptr) {
+
+        Image* img = new Image();
         string path = OpenFileDialog();
-        BMPIO::read(path,img);
-        IMAGE t =img.convertToEasyXImage();
+        if (path == "") {
+            MessageBox(NULL, L"没有选择文件", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        BMPIO::read(path,*img);
+        return img;
+
+    }
+    
+    //bmp文件输出
+    static void* func2(void*img) {
+
+		vector<Image*>* images = static_cast<vector<Image*>*>(img);
+
+		cout << "images size: " << images->size() << endl;
+        if(images->size()==0) {
+            MessageBox(NULL, L"没有图像可以保存", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+		}
+
+		// 打开文件夹选择对话框，获取用户选择的文件夹路径
+        string folderPath = OpenFolderDialog();
         
-    }
+        if (folderPath == "") {
+            MessageBox(NULL, L"没有选择文件夹", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
 
-    void func2() {
-		cout << "this is func2" << endl;
-    }
+        bool suc = true;
+        for(int i=0;i<images->size();i++) {
+            string filepath = folderPath;
+            filepath += "\\output" + to_string(i) + ".bmp";
+            suc &= BMPIO::write(filepath, *(*images)[i]);
 
+		}	
+
+        // 显示一个消息框
+        if (suc) {
+            MessageBox(NULL, L"保存成功", L"提示", MB_OK | MB_ICONINFORMATION);
+        }else {
+            MessageBox(NULL, L"保存失败", L"错误", MB_OK | MB_ICONERROR);
+        }
+
+        return nullptr;
+    }
+    
+    //从原图中裁减一个小图 
+    static void* func3(void* image = nullptr) {
+
+       
+        // 定义字符串缓冲区，并接收用户输入
+        wchar_t s[10];
+        InputBox(s, 10, L"请输入半径");
+
+        // 将用户输入转换为数字
+        int r = _wtoi(s);
+
+        // 画圆
+        circle(320, 240, r);
+
+
+        return nullptr;
+    }
+    
+    //将原图切割为多个小图
+    static void* func4(void* image = nullptr) {
+
+        // 定义字符串缓冲区，并接收用户输入
+        wchar_t s[10];
+        InputBox(s, 10, L"请输入小图的行数");
+
+        // 将用户输入转换为数字
+        int row = _wtoi(s);
+
+        //把src图片分割，子图片的宽和高是参数，把得到的子图片以向量形式返回
+        vector<Image> slice(const Image & src, int blockW, int blockH);
+
+        return nullptr;
+    }
+   
+    static void* func5(void* image = nullptr) {
+        return nullptr;
+    }
+    static void* func6(void* image = nullptr) {
+        return nullptr;
+    }
+    static void* func7(void* image = nullptr) {
+        return nullptr;
+    }
+    static void* func8(void* image = nullptr) {
+        return nullptr;
+    }
+    static void* func9(void* image = nullptr) {
+        return nullptr;
+    }
+    static void* func10(void* image = nullptr) {
+        return nullptr;
+    }
+    static void* func11(void* image = nullptr) {
+        return nullptr;
+    }
+    static void* func12(void* image = nullptr) {
+        return nullptr;
+    }
+    static void* func13(void* image = nullptr) {
+        return nullptr;
+    }
+    
 };
 
 
@@ -310,7 +531,15 @@ private:
 
     vector<Button*> buttons; // 存储当前显示页面上的按钮
 	vector<Tab*> tabs; // 存储页面上的选项卡
+    
+	vector<TextureButton*> tButtons; // 存储页面上的纹理按钮
    
+	Button*  Dbutton; // 删除当前展示的图片的按钮
+
+    vector<Image*>images;//要展示的图片
+	int imageIndex = 0;//当前展示的图片索引
+
+
     // 给某一个模块上添加一个按钮
     void addButton(Button* button,int module)
     {
@@ -326,14 +555,30 @@ private:
     // 处理鼠标点击事件
     void mouseClick(int mouseX, int mouseY)
     {
-        for(Button* button : buttons)
+		Dbutton->checkClick(mouseX, mouseY, &images); // 检查删除按钮是否被点击
+
+        for(TextureButton* tButton : tButtons)
         {
-            if (button->checkClick(mouseX, mouseY))
-            {
+            if (tButton->checkClick(mouseX, mouseY)) {
                 return;
-                // 如果点击了一个按钮，停止检查其他
+                // 如果点击了一个选择按钮，停止检查其他选择按钮
             }
 		}
+
+        for(Button* button : buttons)
+        {
+            Image* res = (Image*)(button->checkClick(mouseX, mouseY,&images));
+            if (res!=nullptr)
+            {
+                images.push_back(res);
+				imageIndex = images.size() - 1;
+                // 更新当前展示的图片索引为最新添加的图片
+                return;
+               
+            }
+
+		}
+
         for(Tab* tab : tabs)
         {
             if(tab->checkClick(mouseX, mouseY))
@@ -348,7 +593,14 @@ private:
     // 处理鼠标移动事件
     void mouseMove(int mouseX, int mouseY)
     {
-
+		Dbutton->checkMouseOver(mouseX, mouseY); // 检查删除按钮是否悬停  
+        for (TextureButton* tButton : tButtons)
+        {
+            if (tButton->checkMouseOver(mouseX, mouseY)) {
+                                return;
+								// 如果悬停在一个选择按钮上，停止检查其他选择按钮
+            }
+        }
         for (Button* button : buttons)
         {
             if (button->checkMouseOver(mouseX, mouseY))
@@ -367,9 +619,79 @@ private:
         }
     }
 
-    // 绘制当前页面的内容
+    // 绘制当前页面的按钮、选择按钮和选项卡,以及图像
     void draw()
     {
+        // 绘制图像
+        if (!images.empty()) {
+            
+            IMAGE img = (images[imageIndex])->convertToEasyXImage(); // 显示最新的图像
+
+            int x = buttons[0]->getX() + buttons[0]->getWidth() + 20; 
+            // 图像显示在按钮右侧，留出20像素的间距
+			int y = height/7;
+            // 设置最大显示尺寸（可以根据需要调整）
+            int maxDisplayWidth = tabs[0]->getX() - x - 20;  // 右侧与选项卡留20像素边距
+            int maxDisplayHeight = height-height *2/ 7; // 底部留20像素边距
+
+            // 绘制图像背景（可选，用于区分图像区域）
+            setfillcolor(RGB(240, 240, 240));  // 浅灰色背景
+            solidrectangle(x, y, x + maxDisplayWidth, y + maxDisplayHeight);
+
+            // 绘制图像边框
+            setlinecolor(LIGHTGRAY);
+            rectangle(x, y, x + maxDisplayWidth, y + maxDisplayHeight);
+
+            // 获取图像原始尺寸
+            int imgWidth = img.getwidth();
+            int imgHeight = img.getheight();
+
+            // 计算等比例缩放因子
+            double scaleX = (double)maxDisplayWidth / imgWidth;
+            double scaleY = (double)maxDisplayHeight / imgHeight;
+            double scale = min(scaleX, scaleY);  // 选择较小的缩放因子，确保完整显示
+
+            // 如果图像已经小于显示区域，则不缩放
+            if (scale >= 1.0) {
+                scale = 1.0;
+            }
+
+            // 计算缩放后的尺寸
+            int scaledWidth = (int)(imgWidth * scale);
+            int scaledHeight = (int)(imgHeight * scale);
+
+
+			//IMAGE* res=Image::resizeImageBicubic(&img, scaledWidth, scaledHeight); // 使用双三次插值缩放图像
+			IMAGE res = Image::resize(&img, scaledWidth, scaledHeight); // 使用简单缩放方法缩放图像
+
+            // 计算居中显示的位置（在按钮右侧区域内）
+            int centeredX = x + (maxDisplayWidth - scaledWidth) / 2;
+            int centeredY = y + (maxDisplayHeight - scaledHeight) / 2;
+            putimage(centeredX, centeredY, &res); // 在指定位置绘制图像
+
+
+			// 提示信息：当前展示的图像索引和总图像数量
+            settextcolor(BLACK);
+            settextstyle(15, 0, _T("宋体"));
+
+			//文本右侧对齐显示
+            wstring text = L"当前图像: " + to_wstring(imageIndex + 1) + L"/" + to_wstring(images.size());
+			int textX = x + maxDisplayWidth - textwidth(text.c_str()); 
+            // 右侧对齐，留10像素边距
+			int textY = y + maxDisplayHeight - textheight(text.c_str()); // 图像下方，留10像素边距
+
+            outtextxy(textX, textY,text.c_str());
+
+			
+          
+        }
+        // 绘制按钮和选项卡
+		Dbutton->draw(); // 绘制删除图像的按钮
+        for(TextureButton* tButton : tButtons)
+        {
+            tButton->draw(); // 绘制当前页面上的所有选择按钮
+		}
+
         for (Button* button : buttons)
         {
             button->draw(); // 绘制当前页面上的所有按钮
@@ -380,6 +702,7 @@ private:
 		}
     }
 
+    
     // 绘制主菜单
     void drawMainMenu() {
         
@@ -394,13 +717,13 @@ private:
         f.lfQuality = ANTIALIASED_QUALITY;		// 设置输出效果为抗锯齿  
         settextstyle(&f);						// 设置字体样式
        
-
-        int textX = (width - textwidth(L"图像处理实验 - 主菜单")) / 2; // 计算文本在按钮中央的x坐标
-        int textY = height / 10;
+        
+        int textX = (width - textwidth(L"图像处理实验 - 主菜单"))/2 ; // 计算文本在按钮中央的x坐标
+        
+        int textY = height / 20;
         settextcolor(BLACK);
         outtextxy(textX, textY, L"图像处理实验 - 主菜单");
 
-		// 绘制按钮和选项卡
         draw();
 
         // 提示信息
@@ -412,8 +735,6 @@ private:
        
     }
 
-
-  
 
 	// 初始化不同模块对应的按钮
     void initModuleButtons() {
@@ -434,22 +755,17 @@ private:
             // 让按钮区域在垂直方向上居中
             int startY = (height - totalButtonsHeight) / 2;
 
-            // 让按钮在水平方向上处于窗口左边 1/4 处（留出空间给Tab）
-            int startX = width / 8 - buttonWidth / 2; // 放在窗口左边 1/6 处
+            // 让按钮在水平方向上处于窗口左边 1/8 处（留出空间给Tab）
+            int startX = width / 8 - buttonWidth / 2; // 放在窗口左边 1/8 处
 
             for (int i = 0; i < buttonCount; i++)
             {
-                Button* button = new Button(startX, startY + i * (buttonHeight + buttonSpacing), buttonWidth, buttonHeight, f.name[k++], f.onClick[0]);
-               
+                Button* button = new Button(startX, startY + i * (buttonHeight + buttonSpacing), buttonWidth, buttonHeight, f.name[k], f.onClick[k]);
+                ++k;
                 addButton(button, j);
             }
         }
-
-        
-
     }
-
-
 
 public:
     Widget(int width, int height)
@@ -457,7 +773,25 @@ public:
     {
         modules.resize(5);
     }
-   
+
+    ~Widget() {
+        delete Dbutton;
+        for (TextureButton* tButton : tButtons) {
+			delete tButton;
+        }
+        for (auto vec : modules) {
+            for (auto b : vec) {
+                delete b;
+            }
+        }
+        for(auto t:tabs) {
+            delete t;
+		}
+        for (auto i : images) {
+            delete i;
+        }
+    }
+
     // 初始化控件，创建图形环境，设置页面和按钮
     void init()
     {
@@ -465,19 +799,75 @@ public:
         setbkcolor(WHITE);
         initModuleButtons();
 		
-        /////////////////////////////////////////////////////
+        //////////////初始化选项卡//////////////////////////////////////
 
-        int initwidth = width/8; // 选项卡宽度
+        int initwidth = width/10; // 选项卡宽度
         int initheight = initwidth / 5; // 选项卡高度
-
-        int initx = width * 5 / 6; // 选项卡初始x坐标 
-        int inity = (height - initheight) / 2;; // 选项卡y坐标
-        
+        // 让选项卡在水平方向上处于窗口右边 1/8 处
+        // 放在窗口右边 1/8 处
+        int initx = (width *7.0)/8.0 - initwidth/2.0; // 选项卡初始x坐标 
+        int inity = (height - initheight) / 2; // 选项卡y坐标     
         Tab* tab = new Tab(5, { L"文件处理模块", L"裁剪切割模块", L"模式转换模块", L"图像增强模块" ,L"图像编码模块"},initx, inity, initwidth, initheight);
-        addTab(tab);
-        
+        addTab(tab);      
         buttons = modules[moduleIndex];
 
+        /////////////////图像删除按钮////////////////////////////////////
+        
+        Dbutton= new Button(initx, inity + initheight * 3, initwidth, initheight, L"删除图像", [this](void* img) {
+
+            if (!images.empty()) {
+                if (0 <= imageIndex&&imageIndex<images.size()) {
+                    images.erase(images.begin() + imageIndex);
+                    if (imageIndex >= images.size()) {
+                        imageIndex = images.size() - 1; // 更新当前展示的图片索引为最后一张图像
+					}
+
+                }
+			}
+            return nullptr;
+			});
+
+        ///////////////////////图像选择按钮////////////////////////////////
+        
+        IMAGE temp;
+		loadimage(&temp, L"next.png"); // 加载图像以获取其尺寸
+		float scale = (float)((initwidth*1.0) / temp.getwidth()); // 计算缩放比例
+
+        IMAGE* next=new IMAGE();
+        loadimage(next, L"next.png", temp.getwidth() * scale, temp.getheight() * scale);
+        
+        loadimage(&temp, L"prev.png"); // 加载图像以获取其尺寸
+        scale = (float)((initwidth * 1.0) / temp.getwidth()); // 计算缩放比例
+
+        IMAGE* prev = new IMAGE();
+        loadimage(prev, L"prev.png", temp.getwidth() * scale, temp.getheight() * scale);
+
+        inity = height * 3.0 / 4.0 - initheight / 2.0;
+
+		TextureButton* nextButton = new TextureButton(initx, inity, initwidth, next->getheight(), next);
+        inity = height/ 4.0 - initheight / 2.0; 
+        TextureButton* prevButton = new TextureButton(initx, inity ,initwidth, prev->getheight(), prev);
+       
+        tButtons.push_back(nextButton);
+        tButtons.push_back(prevButton);
+        
+
+        nextButton->setOnclick([this](void* img) {
+            if (!images.empty()) {
+                imageIndex = (imageIndex + 1) % images.size(); // 显示下一张图像
+            }
+            return nullptr;
+            });
+
+        prevButton->setOnclick([this](void* img) {
+            if (!images.empty()) {
+                imageIndex = (imageIndex - 1 + images.size()) % images.size(); // 显示上一张图像
+            }
+            return nullptr;
+            });
+        
+
+        
     }
 
     // 运行，进入消息循环
@@ -492,7 +882,6 @@ public:
 			buttons = modules[moduleIndex];
             while (peekmessage(&msg)) // 检查是否有消息
             {
-                
                 int mouseX = msg.x; // 获取鼠标x坐标
                 int mouseY = msg.y; // 获取鼠标y坐标
 
@@ -508,6 +897,8 @@ public:
                     break;
                 }
             }
+
+			flushmessage(); // 刷新消息队列，处理完所有消息后继续执行下面的代码
 
 			drawMainMenu(); // 绘制主菜单
             
