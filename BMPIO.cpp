@@ -4,39 +4,42 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <cstdint>     // 提供 uint8_t, uint16_t, uint32_t, int32_t
+#include <cstdlib>     // 提供 abs() 函数
+
+// 如果上述头文件仍有问题，取消下面的注释
+// #include <windows.h>
 
 // BMP文件头结构 (14字节) - 使用 My 前缀避免与 windows.h 冲突
 #pragma pack(push, 1)
 
 struct MyBitmapFileHeader {
-    uint16_t bfType;
-    uint32_t bfSize;
-    uint16_t bfReserved1;
-    uint16_t bfReserved2;
-    uint32_t bfOffBits;
+    uint16_t bfType;        // 文件类型，必须为 "BM" (0x4D42)
+    uint32_t bfSize;        // 整个文件的大小（字节）
+    uint16_t bfReserved1;   // 保留字段，必须为0
+    uint16_t bfReserved2;   // 保留字段，必须为0
+    uint32_t bfOffBits;     // 像素数据相对于文件头的偏移量（字节）
 };
 
-// BMP信息头结构 (40字节)
 struct MyBitmapInfoHeader {
-    uint32_t biSize;
-    int32_t  biWidth;
-    int32_t  biHeight;
-    uint16_t biPlanes;
-    uint16_t biBitCount;
-    uint32_t biCompression;
-    uint32_t biSizeImage;
-    int32_t  biXPelsPerMeter;
-    int32_t  biYPelsPerMeter;
-    uint32_t biClrUsed;
-    uint32_t biClrImportant;
+    uint32_t biSize;            // 信息头大小，固定为40字节
+    int32_t  biWidth;           // 图像宽度（像素）
+    int32_t  biHeight;          // 图像高度（像素）
+    uint16_t biPlanes;          // 颜色平面数，必须为1
+    uint16_t biBitCount;        // 每个像素的位数：1、8、24、32
+    uint32_t biCompression;     // 压缩类型，0表示不压缩
+    uint32_t biSizeImage;       // 像素数据大小（字节）
+    int32_t  biXPelsPerMeter;   // 水平分辨率（像素/米）
+    int32_t  biYPelsPerMeter;   // 垂直分辨率（像素/米）
+    uint32_t biClrUsed;         // 实际使用的调色板颜色数
+    uint32_t biClrImportant;    // 重要颜色数
 };
 
-// 调色板结构 (4字节)
 struct MyRgbQuad {
-    uint8_t rgbBlue;
-    uint8_t rgbGreen;
-    uint8_t rgbRed;
-    uint8_t rgbReserved;
+    uint8_t rgbBlue;        // 蓝色分量
+    uint8_t rgbGreen;       // 绿色分量
+    uint8_t rgbRed;         // 红色分量
+    uint8_t rgbReserved;    // 保留字段
 };
 
 #pragma pack(pop)
@@ -88,7 +91,6 @@ bool BMPIO::read(const std::string& path, Image& img) {
         return false;
     }
 
-    int bytesPerPixel = (bitCount + 7) / 8;
     int rowSize = ((width * bitCount + 31) / 32) * 4;
     int dataSize = rowSize * height;
 
@@ -96,7 +98,6 @@ bool BMPIO::read(const std::string& path, Image& img) {
     if (bitCount <= 8) {
         int paletteSize = (infoHeader.biClrUsed == 0) ? (1 << bitCount) : infoHeader.biClrUsed;
         palette.resize(paletteSize);
-
         size_t paletteBytes = paletteSize * sizeof(MyRgbQuad);
         file.read(reinterpret_cast<char*>(palette.data()), paletteBytes);
     }
@@ -137,7 +138,7 @@ bool BMPIO::read(const std::string& path, Image& img) {
                 if (bitValue < static_cast<int>(palette.size())) {
                     if (palette[bitValue].rgbRed == palette[bitValue].rgbBlue &&
                         palette[bitValue].rgbRed == palette[bitValue].rgbGreen) {
-                        pixelValue = palette[bitValue].rgbRed;
+                        pixelValue = (palette[bitValue].rgbRed > 127) ? 1 : 0;
                     }
                     else {
                         pixelValue = (palette[bitValue].rgbRed << 16) |
@@ -146,22 +147,14 @@ bool BMPIO::read(const std::string& path, Image& img) {
                     }
                 }
                 else {
-                    pixelValue = bitValue * 255;
+                    pixelValue = bitValue ? 1 : 0;
                 }
             }
             else if (bitCount == 8) {
                 uint8_t index = rowData[x];
-
                 if (index < palette.size()) {
-                    if (palette[index].rgbRed == palette[index].rgbBlue &&
-                        palette[index].rgbRed == palette[index].rgbGreen) {
-                        pixelValue = palette[index].rgbRed;
-                    }
-                    else {
-                        pixelValue = (palette[index].rgbRed << 16) |
-                            (palette[index].rgbGreen << 8) |
-                            palette[index].rgbBlue;
-                    }
+                    // 关键修复：对于灰度图像，直接使用灰度值
+                    pixelValue = palette[index].rgbRed;
                 }
                 else {
                     pixelValue = index;
@@ -205,7 +198,6 @@ bool BMPIO::write(const std::string& path, const Image& img) {
         return false;
     }
 
-    int bytesPerPixel = (bitCount + 7) / 8;
     int rowSize = ((width * bitCount + 31) / 32) * 4;
     int dataSize = rowSize * height;
 
@@ -219,10 +211,9 @@ bool BMPIO::write(const std::string& path, const Image& img) {
 
     MyBitmapFileHeader fileHeader = { 0 };
     fileHeader.bfType = 0x4D42;
-    fileHeader.bfOffBits = sizeof(MyBitmapFileHeader) + sizeof(MyBitmapInfoHeader) + paletteSize * sizeof(MyRgbQuad);
+    fileHeader.bfOffBits = sizeof(MyBitmapFileHeader) + sizeof(MyBitmapInfoHeader)
+        + paletteSize * sizeof(MyRgbQuad);
     fileHeader.bfSize = fileHeader.bfOffBits + dataSize;
-    fileHeader.bfReserved1 = 0;
-    fileHeader.bfReserved2 = 0;
 
     MyBitmapInfoHeader infoHeader = { 0 };
     infoHeader.biSize = sizeof(MyBitmapInfoHeader);
@@ -245,18 +236,11 @@ bool BMPIO::write(const std::string& path, const Image& img) {
         return false;
     }
 
+    // 写入调色板
     if (bitCount == 1) {
         MyRgbQuad palette[2] = { 0 };
-        palette[0].rgbBlue = 0;
-        palette[0].rgbGreen = 0;
-        palette[0].rgbRed = 0;
-        palette[0].rgbReserved = 0;
-
-        palette[1].rgbBlue = 255;
-        palette[1].rgbGreen = 255;
-        palette[1].rgbRed = 255;
-        palette[1].rgbReserved = 0;
-
+        palette[0].rgbBlue = 0;   palette[0].rgbGreen = 0;   palette[0].rgbRed = 0;
+        palette[1].rgbBlue = 255; palette[1].rgbGreen = 255; palette[1].rgbRed = 255;
         file.write(reinterpret_cast<const char*>(palette), sizeof(palette));
     }
     else if (bitCount == 8) {
@@ -270,6 +254,7 @@ bool BMPIO::write(const std::string& path, const Image& img) {
         file.write(reinterpret_cast<const char*>(palette.data()), palette.size() * sizeof(MyRgbQuad));
     }
 
+    // 准备像素数据
     std::vector<uint8_t> bmpData(dataSize, 0);
 
     for (int y = 0; y < height; y++) {
@@ -282,29 +267,22 @@ bool BMPIO::write(const std::string& path, const Image& img) {
             if (bitCount == 1) {
                 int byteIndex = x / 8;
                 int bitOffset = 7 - (x % 8);
-
-                uint8_t value;
                 int r = (pixel >> 16) & 0xFF;
                 int g = (pixel >> 8) & 0xFF;
                 int b = pixel & 0xFF;
                 int luminance = (r * 299 + g * 587 + b * 114) / 1000;
-                value = (luminance > 127) ? 1 : 0;
-
-                if (value) {
+                if (luminance > 127) {
                     rowData[byteIndex] |= (1 << bitOffset);
                 }
             }
             else if (bitCount == 8) {
-                int r = (pixel >> 16) & 0xFF;
-                int g = (pixel >> 8) & 0xFF;
-                int b = pixel & 0xFF;
-                int luminance = (r * 299 + g * 587 + b * 114) / 1000;
-                rowData[x] = static_cast<uint8_t>(luminance);
+                // 关键修复：直接存储灰度值
+                rowData[x] = static_cast<uint8_t>(pixel & 0xFF);
             }
             else if (bitCount == 24) {
-                rowData[x * 3] = static_cast<uint8_t>(pixel & 0xFF);
-                rowData[x * 3 + 1] = static_cast<uint8_t>((pixel >> 8) & 0xFF);
-                rowData[x * 3 + 2] = static_cast<uint8_t>((pixel >> 16) & 0xFF);
+                rowData[x * 3] = static_cast<uint8_t>(pixel & 0xFF);        // B
+                rowData[x * 3 + 1] = static_cast<uint8_t>((pixel >> 8) & 0xFF); // G
+                rowData[x * 3 + 2] = static_cast<uint8_t>((pixel >> 16) & 0xFF); // R
             }
             else if (bitCount == 32) {
                 rowData[x * 4] = static_cast<uint8_t>(pixel & 0xFF);
@@ -323,7 +301,6 @@ bool BMPIO::write(const std::string& path, const Image& img) {
     }
 
     file.close();
-
     std::cout << "Successfully saved: " << path << std::endl;
     return true;
 }

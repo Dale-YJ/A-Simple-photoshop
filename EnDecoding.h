@@ -5,7 +5,7 @@
 #include "Image.h"
 
 class EnDecoding {
-
+public:
 	//无损预测编码,order是阶次,coefficient是预测系数
 	Image losslessPredictiveEnCoding(const Image& img,int order,vector<int> coefficients);
 	//无损预测解码
