@@ -15,8 +15,6 @@
 using namespace std;
 
 
-
-
 //打开一个文件对话框，返回选择bmp文件的路径
 string OpenFileDialog() {
     char filePath[MAX_PATH] = { 0 };
@@ -66,11 +64,11 @@ protected:
     float scale; // 缩放比例，用于实现鼠标悬停效果
     bool isMouseOver; // 表示鼠标是否在按钮上方
     wstring text; // 按钮文本
-    function<void*(void*)> onClick; // 点击按钮触发的函数
+    function<void*(void*,int)> onClick; // 点击按钮触发的函数
     
 public:
 
-    Button(int _x, int _y, int _width, int _height, const wstring& _text, const function<void*(void*)>& _onClick=[](void* img){return nullptr; })
+    Button(int _x, int _y, int _width, int _height, const wstring& _text, const function<void*(void*,int)>& _onClick=[](void* img,int index){return nullptr; })
 		: x(_x), y(_y), width(_width), height(_height), text(_text), scale(1.0f), isMouseOver(false), onClick(_onClick)
     {}
 
@@ -104,17 +102,17 @@ public:
 		return width;
     }
 
-    void setOnclick(function<void* (void*)> _onClick) {
+    void setOnclick(function<void* (void*,int)> _onClick) {
 
 		onClick = _onClick;
     }
 
     // 检查鼠标点击是否在按钮内，并执行函数
-    void* checkClick(int mouseX, int mouseY,void*img=nullptr)
+    void* checkClick(int mouseX, int mouseY,void*img=nullptr,int index=0)
     {
         if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height)
         {
-            void* res=onClick(img); // 执行按钮点击时的函数
+            void* res=onClick(img,index); // 执行按钮点击时的函数
             //isMouseOver = false;
             //scale = 1.0f;
             return res;
@@ -158,18 +156,18 @@ class TextureButton : public Button {
 private:
 	IMAGE* texture; // 按钮纹理，可以是一个图片
 public:
-    TextureButton(int _x, int _y, int _width, int _height, IMAGE* texture, const wstring& _text=L"", const function<void* (void*)>& _onClick = [](void* img) {return nullptr; })
+    TextureButton(int _x, int _y, int _width, int _height, IMAGE* texture, const wstring& _text=L"", const function<void* (void*,int)>& _onClick = [](void* img,int index) {return nullptr; })
 		: Button(_x, _y, _width, _height, _text, _onClick), texture(texture)
 	{
 	}
     
 
     // 检查鼠标点击是否在按钮内，并执行函数
-    bool checkClick(int mouseX, int mouseY, void* img = nullptr)
+    bool checkClick(int mouseX, int mouseY, void* img = nullptr,int index=0)
     {
         if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height)
         {
-            onClick(img); // 执行按钮点击时的函数
+            onClick(img,index); // 执行按钮点击时的函数
             //isMouseOver = false;
             //scale = 1.0f;
             return true;
@@ -400,10 +398,11 @@ public:
         L"color to gray", L"直方图均衡", L"指数变换增强", L"对数变换增强", L"无损预测编码", 
         L"均匀量化", L"DCT变换编码" };
     
-    vector<function<void*(void*)>> onClick; // 点击按钮触发的函数族
+    vector<function<void*(void*,int)>> onClick; // 点击按钮触发的函数族
 
-    //bmp文件读入
-    static void* func1(void*image=nullptr) {
+	//bmp文件读入,index是当前图像在图像列表中的索引，
+    // 函数可以根据这个索引对图像列表进行修改
+    static void* func1(void*image=nullptr,int index=-1) {
 
         Image* img = new Image();
         string path = OpenFileDialog();
@@ -417,7 +416,7 @@ public:
     }
     
     //bmp文件输出
-    static void* func2(void*img) {
+    static void* func2(void*img, int index = 0) {
 
 		vector<Image*>* images = static_cast<vector<Image*>*>(img);
 
@@ -454,64 +453,71 @@ public:
     }
     
     //从原图中裁减一个小图 
-    static void* func3(void* image = nullptr) {
-
-       
-        // 定义字符串缓冲区，并接收用户输入
-        wchar_t s[10];
-        InputBox(s, 10, L"请输入半径");
-
-        // 将用户输入转换为数字
-        int r = _wtoi(s);
-
-        // 画圆
-        circle(320, 240, r);
-
+    static void* func3(void* image = nullptr, int index = 0) {
 
         return nullptr;
     }
     
     //将原图切割为多个小图
-    static void* func4(void* image = nullptr) {
-
-        // 定义字符串缓冲区，并接收用户输入
-        wchar_t s[10];
-        InputBox(s, 10, L"请输入小图的行数");
-
-        // 将用户输入转换为数字
-        int row = _wtoi(s);
-
-        //把src图片分割，子图片的宽和高是参数，把得到的子图片以向量形式返回
-        vector<Image> slice(const Image & src, int blockW, int blockH);
+    static void* func4(void* image = nullptr, int index = 0) {
 
         return nullptr;
     }
    
-    static void* func5(void* image = nullptr) {
+    static void* func5(void* image = nullptr, int index = 0) {
         return nullptr;
     }
-    static void* func6(void* image = nullptr) {
+    static void* func6(void* image = nullptr, int index = 0) {
         return nullptr;
     }
-    static void* func7(void* image = nullptr) {
+    static void* func7(void* image = nullptr, int index = 0) {
         return nullptr;
     }
-    static void* func8(void* image = nullptr) {
+    static void* func8(void* image = nullptr, int index = 0) {
         return nullptr;
     }
-    static void* func9(void* image = nullptr) {
+    static void* func9(void* image = nullptr, int index = 0) {
         return nullptr;
     }
-    static void* func10(void* image = nullptr) {
+
+	//无损预测编码
+    static void* func10(void* image = nullptr, int index = 0) {
+        //整个图像序列
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"没有图像可以处理", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        
+        if(index<0 || index>=images->size()) {
+            MessageBox(NULL, L"图像索引无效", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+		}
+
+        //待处理的图像
+        Image* img = (*images)[index];
+
+        wchar_t sParams[50];
+        InputBox(sParams, 50, L"请输入预测阶数和系数（格式：阶数,系数1,系数2,系数3...）\n例如：2,0.5,0.5\n只支持1-3阶");
+        
+
+		vector<double> coefficients; //预测系数
+        coefficients.push_back(1);
+        coefficients.push_back(1);
+        coefficients.push_back(-1);
+
+		Image* res =new Image(EnDecoding::losslessPredictiveEnCoding(*img, coefficients)) ;
+
+        return res;
+    }
+
+    static void* func11(void* image = nullptr, int index = 0) {
         return nullptr;
     }
-    static void* func11(void* image = nullptr) {
+    static void* func12(void* image = nullptr, int index = 0) {
         return nullptr;
     }
-    static void* func12(void* image = nullptr) {
-        return nullptr;
-    }
-    static void* func13(void* image = nullptr) {
+    static void* func13(void* image = nullptr, int index = 0) {
         return nullptr;
     }
     
@@ -536,7 +542,7 @@ private:
    
 	Button*  Dbutton; // 删除当前展示的图片的按钮
 
-    vector<Image*>images;//要展示的图片
+    vector<Image*>images;//要展示的图片序列
 	int imageIndex = 0;//当前展示的图片索引
 
 
@@ -566,17 +572,15 @@ private:
 		}
 
         for(Button* button : buttons)
-        {
-            Image* res = (Image*)(button->checkClick(mouseX, mouseY,&images));
+        {               
+            Image* res = (Image*)(button->checkClick(mouseX, mouseY,&images,imageIndex));
             if (res!=nullptr)
             {
                 images.push_back(res);
 				imageIndex = images.size() - 1;
                 // 更新当前展示的图片索引为最新添加的图片
                 return;
-               
             }
-
 		}
 
         for(Tab* tab : tabs)
@@ -701,7 +705,7 @@ private:
             tab->draw(); // 显示当前页面上的所有选项卡
 		}
     }
-
+      
     
     // 绘制主菜单
     void drawMainMenu() {
@@ -813,7 +817,7 @@ public:
 
         /////////////////图像删除按钮////////////////////////////////////
         
-        Dbutton= new Button(initx, inity + initheight * 3, initwidth, initheight, L"删除图像", [this](void* img) {
+        Dbutton= new Button(initx, inity + initheight * 3, initwidth, initheight, L"删除图像", [this](void* img,int index) {
 
             if (!images.empty()) {
                 if (0 <= imageIndex&&imageIndex<images.size()) {
@@ -852,14 +856,14 @@ public:
         tButtons.push_back(prevButton);
         
 
-        nextButton->setOnclick([this](void* img) {
+        nextButton->setOnclick([this](void* img,int index) {
             if (!images.empty()) {
                 imageIndex = (imageIndex + 1) % images.size(); // 显示下一张图像
             }
             return nullptr;
             });
 
-        prevButton->setOnclick([this](void* img) {
+        prevButton->setOnclick([this](void* img,int index) {
             if (!images.empty()) {
                 imageIndex = (imageIndex - 1 + images.size()) % images.size(); // 显示上一张图像
             }
