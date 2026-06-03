@@ -6,7 +6,8 @@
 #include<vector>
 #include<string>
 #include<Windows.h>
-
+#include <graphics.h>
+#include <conio.h>
 
 
 using std::vector;
@@ -71,7 +72,6 @@ public:
         return type;
     }
 
-
     Image(int w, int h, int bc,Type t)
         : width(w), height(h), bitcount(bc),type(t) {
         if (width <= 0 || height <= 0)
@@ -86,7 +86,7 @@ public:
     }
 
     //获取像素值
-    int getPixel(int x, int y) const {
+    uint64_t getPixel(int x, int y) const {
         if (!isValid(x, y)) return -1;
 
         size_t i = index(x, y);
@@ -165,6 +165,150 @@ public:
     static int getBlueComponent(uint32_t value) {
         return value &0xff;
     }
+
+
+
+    // 双三次插值权重函数
+    static double cubicInterpolation(double x) {
+        double absX = fabs(x);
+        if (absX <= 1.0) {
+            return 1.5 * pow(absX, 3) - 2.5 * pow(absX, 2) + 1.0;
+        }
+        else if (absX < 2.0) {
+            return -0.5 * pow(absX, 3) + 2.5 * pow(absX, 2) - 4.0 * absX + 2.0;
+        }
+        return 0.0;
+    }
+
+       
+    
+    static IMAGE resize(IMAGE* srcImg, int newWidth, int newHeight) {
+
+		float xRatio = (newWidth*1.0/(srcImg->getwidth()*1.0) );
+        float yRatio = (newHeight*1.0/(srcImg->getheight()*1.0));
+
+		saveimage(L"temp.jpg", srcImg);
+
+		IMAGE dstImg (newWidth, newHeight);
+		
+
+        loadimage(&dstImg, L"temp.jpg", newWidth, newHeight);
+
+		return dstImg;
+
+    }
+
+    // 双三次插值缩放图像（高质量）
+    static IMAGE* resizeImageBicubic(IMAGE* srcImg, int newWidth, int newHeight) {
+        if (!srcImg || newWidth <= 0 || newHeight <= 0) return nullptr;
+
+        IMAGE* dstImg = new IMAGE(newWidth, newHeight);
+        DWORD* srcBuffer = GetImageBuffer(srcImg);
+        DWORD* dstBuffer = GetImageBuffer(dstImg);
+
+        int srcWidth = srcImg->getwidth();
+        int srcHeight = srcImg->getheight();
+
+        double xRatio = (double)(srcWidth - 1) / newWidth;
+        double yRatio = (double)(srcHeight - 1) / newHeight;
+
+        for (int y = 0; y < newHeight; y++) {
+            for (int x = 0; x < newWidth; x++) {
+                double srcX = x * xRatio;
+                double srcY = y * yRatio;
+
+                int xInt = (int)srcX;
+                int yInt = (int)srcY;
+
+                double r = 0.0, g = 0.0, b = 0.0;
+                double weightSum = 0.0;
+
+                // 双三次插值：考虑周围16个像素
+                for (int m = -1; m <= 2; m++) {
+                    for (int n = -1; n <= 2; n++) {
+                        int px = min(max(xInt + m, 0), srcWidth - 1);
+                        int py = min(max(yInt + n, 0), srcHeight - 1);
+
+                        double dx = srcX - (xInt + m);
+                        double dy = srcY - (yInt + n);
+
+                        double weight = cubicInterpolation(dx) * cubicInterpolation(dy);
+                        weightSum += weight;
+
+                        DWORD pixel = srcBuffer[py * srcWidth + px];
+                        r += weight * GetRValue(pixel);
+                        g += weight * GetGValue(pixel);
+                        b += weight * GetBValue(pixel);
+                    }
+                }
+
+                // 归一化
+                if (weightSum > 0) {
+                    r /= weightSum;
+                    g /= weightSum;
+                    b /= weightSum;
+                }
+
+                dstBuffer[y * newWidth + x] = RGB((BYTE)r, (BYTE)g, (BYTE)b);
+            }
+        }
+
+        return dstImg;
+    }
+
+
+    
+
+    // 将自定义 Image 转换为 EasyX 的 IMAGE
+    IMAGE convertToEasyXImage() {
+        IMAGE dstImg(width, height);
+
+        // 获取dstImg缓冲区的指针
+        DWORD* pMem = GetImageBuffer(&dstImg);
+
+        // 直接对显示缓冲区赋值
+        for (int i = 0; i < width * height; i++) {
+            //对应该图像的x，y坐标
+            int y = i / width;
+            int x = i % width;
+
+            switch (type) {
+            case Binary:
+            {
+                bool value = getPixel(x, y);
+                if (value) {
+                    pMem[i] = WHITE;
+                }
+                else {
+                    pMem[i] = BLACK;
+                }
+
+                break;
+            }
+                
+            case Gray:
+            {
+                uint8_t value = getPixel(x, y);
+                pMem[i] = RGB(value, value, value);
+                break;
+
+            }
+               
+            case Color:
+            {
+                uint32_t value = getPixel(x, y);
+                pMem[i] = BGR(RGB(getRedComponent(value), getGreenComponent(value), getBlueComponent(value)));
+                break;
+            }
+               
+            }
+
+
+        }
+        return dstImg;
+
+    }
+
 
 };
 

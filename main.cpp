@@ -1,15 +1,54 @@
-#include<iostream>
+ï»¿#include<iostream>
 #include"Image.h"
 
+#include"UI.h"
 
-#include <graphics.h>		// ÒıÓÃÍ¼ĞÎ¿âÍ·ÎÄ¼ş
-#include <conio.h>
+
+
+
+//
+//int main() {
+//    initgraph(800, 600,EX_SHOWCONSOLE);
+//    Image img;
+//    string path = OpenFileDialog();
+//    BMPIO::read(path, img);
+//    cout << img.getType();
+//    IMAGE t = img.convertToEasyXImage();
+//    putimage(0, 0, &t);
+//    _getch();
+//    closegraph();
+//}
+
+//
+//int main()
+//{
+//	// åˆå§‹åŒ–ç»˜å›¾çª—å£
+//	initgraph(640, 480);
+//
+//	// å®šä¹‰å­—ç¬¦ä¸²ç¼“å†²åŒºï¼Œå¹¶æ¥æ”¶ç”¨æˆ·è¾“å…¥
+//	wchar_t s[10];
+//	InputBox(s, 10, L"è¯·è¾“å…¥åŠå¾„");
+//
+//	// å°†ç”¨æˆ·è¾“å…¥è½¬æ¢ä¸ºæ•°å­—
+//	int r = _wtoi(s);
+//
+//	// ç”»åœ†
+//	circle(320, 240, r);
+//
+//	// æŒ‰ä»»æ„é”®é€€å‡º
+//	_getch();
+//	closegraph();
+//
+//	return 0;
+//}
+
+
 int main()
 {
-	
-	initgraph(640, 480);	// ´´½¨»æÍ¼´°¿Ú£¬´óĞ¡Îª 640x480 ÏñËØ
-	circle(200, 200, 100);	// »­Ô²£¬Ô²ĞÄ(200, 200)£¬°ë¾¶ 100
-	_getch();				// °´ÈÎÒâ¼ü¼ÌĞø
-	closegraph();			// ¹Ø±Õ»æÍ¼´°¿Ú
-	return 0;
+    Widget widget(1200, 700);
+    widget.init();
+    widget.run();
+    widget.close();
+    return 0;
 }
+

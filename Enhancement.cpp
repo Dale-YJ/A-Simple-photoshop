@@ -1,5 +1,9 @@
 #include "Enhancement.h"
 
+const double PI = 3.14159265358979323846;
+inline double deg2rad(int deg) {
+	return deg * PI / 180.0;
+}
 
 vector<int> Enhancement::histogram(const Image& img) {
 	//todo
@@ -10,8 +14,17 @@ vector<int> Enhancement::histogram(const Image& img) {
 
 Image Enhancement::histogramEqualization(const Image& img) {
 	//todo
+
 	int w = img.getwidth();
 	int h = img.getheight();
+
+	int bc = img.getbitcount();
+	printf("Image object address: %p\n", &img);
+	printf("w = %d (0x%X)\n", w, w);
+	printf("h = %d (0x%X)\n", h, h);
+	printf("bc = %d (0x%X)\n", bc, bc);
+	printf("type = %d (0x%X)\n", img.gettype(), img.gettype());
+
 	Image res(w, h, img.getbitcount(), img.gettype());
 	vector<int> pixels(256, 0);  //统计所有灰度/亮度的像素个数
 
@@ -61,13 +74,41 @@ Image Enhancement::histogramEqualization(const Image& img) {
 				int b = img.getBlueComponent(p);
 				int g = img.getGreenComponent(p);
 				double theta = cos(0.5 * (2 * r - g - b) / sqrt(pow((r - g), 2) + (r - b) * (g - b)));
-				double hue = b <= g ? theta : (360 - theta);
+				double hue = b <= g ? theta : (deg2rad(360) - theta);
 				double s = 1 - (3 * min(r, g, b) / (r + b + g));
 				double old_light = (r + g + b) / 3;
 				int i = new_pixels[old_light];
-				if (hue <= 120) {
+				if (hue <= deg2rad(120)) {
 					b = i * (1 - s);
-					r = i*(1+s*cos(hue)/)
+					r = i * (1 + s * cos(hue) / cos(deg2rad(60) - hue));
+					g = 3 * i - (r + b);
+					r = max(0, min(255, (int)r));
+					g = max(0, min(255, (int)g));
+					b = max(0, min(255, (int)b));
+					unsigned int color24 = ((unsigned int)b << 16) |((unsigned int)g << 8) |(unsigned int)r;
+					res.setPixel(x, y, color24);
+				}
+				else if (hue <= deg2rad(240) && hue > deg2rad(120)) {
+					hue = hue - deg2rad(120);
+					r = i * (1 - s);
+					g = i * (1 + s * cos(hue) / cos(deg2rad(60) - hue));
+					b = 3 * i - (r + g);
+					r = max(0, min(255, (int)r));
+					g = max(0, min(255, (int)g));
+					b = max(0, min(255, (int)b));
+					unsigned int color24 = ((unsigned int)b << 16) | ((unsigned int)g << 8) | (unsigned int)r;
+					res.setPixel(x, y, color24);
+				}
+				else {
+					hue=hue- deg2rad(240);
+					g = i * (1 - s);
+					b = i * (1 + s * cos(hue) / cos(deg2rad(60) - hue));
+					r = 3 * i - (g + b);
+					r = max(0, min(255, (int)r));
+					g = max(0, min(255, (int)g));
+					b = max(0, min(255, (int)b));
+					unsigned int color24 = ((unsigned int)b << 16) | ((unsigned int)g << 8) | (unsigned int)r;
+					res.setPixel(x, y, color24);
 				}
 			}
 		}

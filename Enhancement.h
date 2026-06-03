@@ -13,7 +13,7 @@
 #include "Image.h"
 
 class Enhancement {
-
+public:
 	//把一副图的直方图以向量形式返回
 	vector<int>histogram(const Image& img);
 

@@ -137,6 +137,7 @@
     <ClInclude Include="Enhancement.h" />
     <ClInclude Include="Image.h" />
     <ClInclude Include="ModeConvert.h" />
+    <ClInclude Include="UI.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
