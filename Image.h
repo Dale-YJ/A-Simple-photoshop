@@ -67,6 +67,9 @@ public:
     int getbitcount()const {
         return bitcount;
     }
+    Type gettype()const {
+        return type;
+    }
 
 
     Image(int w, int h, int bc,Type t)
