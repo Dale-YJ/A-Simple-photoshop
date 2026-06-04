@@ -15,7 +15,7 @@ public:
 	static Image uniformQuantization(const Image& img, int bitsPerPixel);
 	
 	//IGSÁ¿»¯
-	static Image IGSQuantization(const Image& img, int bits);
+	static Image IGSQuantization(const Image& img);
 
 
 	//DCT±ä»»±àÂë

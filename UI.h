@@ -655,12 +655,33 @@ public:
         cout << "均方根误差：" << error << endl;
         return res;
     }
-
+    //IGS
     static void* func13(void* image = nullptr, int index = 0) {
-        cout << "this is func13" << endl;
+        //整个图像序列
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"没有图像可以处理", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
 
-        return nullptr;
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"图像索引无效", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        //待处理的图像
+        Image* img = (*images)[index];
+        if (img->getType() != Image::Gray) {
+            MessageBox(NULL, L"图像格式无效", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* res = new Image(EnDecoding::IGSQuantization(*img));
+
+        double error = Image::rootMeanSquareError(res, img);
+        cout << "均方根误差：" << error << endl;
+        return res;
     }
+    
     static void* func14(void* image = nullptr, int index = 0) {
         cout << "this is func14" << endl;
 
