@@ -6,15 +6,17 @@
 
 class EnDecoding {
 public:
-	//无损预测编码,order是阶次,coefficient是预测系数
+	//无损预测编码,coefficient是预测系数
 	static Image losslessPredictiveEnCoding(const Image& img,const vector<double>& coefficients);
 	//无损预测解码
-	static Image losslessPredictiveDeCoding(const Image& img, int order,const vector<double>& coefficients);
+	static Image losslessPredictiveDeCoding(const Image& img,const vector<double>& coefficients);
 
 	//均匀量化
-	static Image uniformQuantization(const Image& img, int bits);
+	static Image uniformQuantization(const Image& img, int bitsPerPixel);
+	
 	//IGS量化
 	static Image IGSQuantization(const Image& img, int bits);
+
 
 	//DCT变换编码
 	//size是分块的大小

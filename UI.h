@@ -5,6 +5,7 @@
 #include <shlobj.h>
 #include <string>
 #include <functional>
+#include <cwchar>    
 
 #include "Image.h"
 #include "BMPIO.h"
@@ -377,8 +378,7 @@ public:
 class Functions {
 public:
     Functions() {
-    
-        //onClick.push_back(bind(&Functions::func1, this));
+
         onClick.push_back(func1);
         onClick.push_back(func2);
         onClick.push_back(func3);
@@ -392,11 +392,15 @@ public:
         onClick.push_back(func11);
         onClick.push_back(func12);
         onClick.push_back(func13);
+        onClick.push_back(func14);
+        onClick.push_back(func15);
+        onClick.push_back(func16);
+        onClick.push_back(func17);
 
 	}
     vector<wstring>name = {L"bmp文件读入",L"bmp文件输出",L"裁减", L"切割", L"gray to binary",
-        L"color to gray", L"直方图均衡", L"指数变换增强", L"对数变换增强", L"无损预测编码", 
-        L"均匀量化", L"DCT变换编码" };
+        L"color to gray", L"直方图均衡", L"指数变换增强", L"对数变换增强", L"无损预测编码", L"无损预测解码",
+        L"均匀量化",L"IGS", L"DCT变换编码",L"反DCT变换"};
     
     vector<function<void*(void*,int)>> onClick; // 点击按钮触发的函数族
 
@@ -497,30 +501,186 @@ public:
         //待处理的图像
         Image* img = (*images)[index];
 
+        if (img->getType() != Image::Gray) {
+            MessageBox(NULL, L"图像格式无效", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+
         wchar_t sParams[50];
-        InputBox(sParams, 50, L"请输入预测阶数和系数（格式：阶数,系数1,系数2,系数3...）\n例如：2,0.5,0.5\n只支持1-3阶");
-        
+        InputBox(sParams, 50, L"请输入预测阶数和系数\n（格式：阶数,系数1,系数2,系数3...）\n例如：2,0.5,0.5\n只支持1-3阶");
+		vector<double> coefficients(3,0.0); //预测系数
 
-		vector<double> coefficients; //预测系数
-        coefficients.push_back(1);
-        coefficients.push_back(1);
-        coefficients.push_back(-1);
+        wchar_t* context = nullptr;
+        wchar_t* token = wcstok_s(sParams, L",", &context); // 
+        if (token != nullptr) {
+            wchar_t* endptr;
+            long order = wcstol(token, &endptr, 10);
+            // 检查阶数是否有效（1-3）
+            if (order >= 1 && order <= 3 && *endptr == L'\0') {
+                for (long i = 0; i < order; ++i) {
+                    token = wcstok_s(nullptr, L",", &context);
+                    if (token == nullptr) {
+                        // 系数数量不足
+                        MessageBox(NULL, L"系数数量不足", L"错误", MB_OK | MB_ICONERROR);
+                        return nullptr;
+                    }
+                    double coeff = std::wcstod(token, &endptr);
 
+                    if (*endptr == L'\0') {
+						coefficients[i] = coeff;
+                    }
+                    else {
+                        // 系数格式错误，可在此处添加错误处理
+                        MessageBox(NULL, L"系数格式错误", L"错误", MB_OK | MB_ICONERROR);
+                        return nullptr;
+                     
+                    }
+                }
+            }
+            else {
+                // 阶数无效
+                MessageBox(NULL, L"阶数无效", L"错误", MB_OK | MB_ICONERROR);
+                return nullptr;
+
+            }
+        }
+        else {
+            // 输入为空
+            MessageBox(NULL, L"无输入", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
 		Image* res =new Image(EnDecoding::losslessPredictiveEnCoding(*img, coefficients)) ;
 
         return res;
     }
-
+    //无损预测解码
     static void* func11(void* image = nullptr, int index = 0) {
-        return nullptr;
+        //整个图像序列
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"没有图像可以处理", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"图像索引无效", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        //待处理的图像
+        Image* img = (*images)[index];
+        if (img->getType() != Image::Gray) {
+            MessageBox(NULL, L"图像格式无效", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        wchar_t sParams[50];
+        InputBox(sParams, 50, L"请输入预测阶数和系数\n（格式：阶数,系数1,系数2,系数3...）\n例如：2,0.5,0.5\n只支持1-3阶");
+        vector<double> coefficients(3, 0.0); //预测系数
+
+        wchar_t* context = nullptr;
+        wchar_t* token = wcstok_s(sParams, L",", &context); // 
+        if (token != nullptr) {
+            wchar_t* endptr;
+            long order = wcstol(token, &endptr, 10);
+            // 检查阶数是否有效（1-3）
+            if (order >= 1 && order <= 3 && *endptr == L'\0') {
+                for (long i = 0; i < order; ++i) {
+                    token = wcstok_s(nullptr, L",", &context);
+                    if (token == nullptr) {
+                        // 系数数量不足
+                        MessageBox(NULL, L"系数数量不足", L"错误", MB_OK | MB_ICONERROR);
+                        return nullptr;
+                    }
+                    double coeff = std::wcstod(token, &endptr);
+
+                    if (*endptr == L'\0') {
+                        coefficients[i] = coeff;
+                    }
+                    else {
+                        // 系数格式错误，可在此处添加错误处理
+                        MessageBox(NULL, L"系数格式错误", L"错误", MB_OK | MB_ICONERROR);
+                        return nullptr;
+
+                    }
+                }
+            }
+            else {
+                // 阶数无效
+                MessageBox(NULL, L"阶数无效", L"错误", MB_OK | MB_ICONERROR);
+                return nullptr;
+            }
+        }
+        else {
+            // 输入为空
+            MessageBox(NULL, L"无输入", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        Image* res = new Image(EnDecoding::losslessPredictiveDeCoding(*img, coefficients));
+
+        return res;
     }
+   
+    //均匀量化
     static void* func12(void* image = nullptr, int index = 0) {
-        return nullptr;
+        //整个图像序列
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"没有图像可以处理", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"图像索引无效", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        //待处理的图像
+        Image* img = (*images)[index];
+        if (img->getType() != Image::Gray) {
+            MessageBox(NULL, L"图像格式无效", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        wchar_t s[50];
+        InputBox(s, 50, L"请输入量化后bit/pixel \n只支持1-8阶");
+        int bitperpixel = _wtoi(s);
+        if (bitperpixel <= 0 || bitperpixel >= 9) {
+            MessageBox(NULL, L"无效的参数", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        
+        Image* res = new Image(EnDecoding::uniformQuantization(*img, bitperpixel));
+
+        double error = Image::rootMeanSquareError(res, img);
+        cout << "均方根误差：" << error << endl;
+        return res;
     }
+
     static void* func13(void* image = nullptr, int index = 0) {
+        cout << "this is func13" << endl;
+
         return nullptr;
     }
-    
+    static void* func14(void* image = nullptr, int index = 0) {
+        cout << "this is func14" << endl;
+
+        return nullptr;
+    }
+    static void* func15(void* image = nullptr, int index = 0) {
+        cout << "this is func15" << endl;
+
+        return nullptr;
+    }
+    static void* func16(void* image = nullptr, int index = 0) {
+        cout << "this is func16" << endl;
+
+        return nullptr;
+    }
+    static void* func17(void* image = nullptr, int index = 0) {
+        cout << "this is func17" << endl;
+
+        return nullptr;
+    }
 };
 
 
@@ -530,21 +690,16 @@ class Widget
 private:
     int width; // 宽度
     int height; // 高度
-    
 	int moduleIndex = 0; // 当前选中的模块索引
-
 	vector<vector<Button*>> modules; // 存储不同选项卡对应的按钮，及不同功能模块对应的按钮
-
     vector<Button*> buttons; // 存储当前显示页面上的按钮
 	vector<Tab*> tabs; // 存储页面上的选项卡
     
 	vector<TextureButton*> tButtons; // 存储页面上的纹理按钮
    
 	Button*  Dbutton; // 删除当前展示的图片的按钮
-
     vector<Image*>images;//要展示的图片序列
 	int imageIndex = 0;//当前展示的图片索引
-
 
     // 给某一个模块上添加一个按钮
     void addButton(Button* button,int module)
@@ -556,8 +711,7 @@ private:
     {
         tabs.push_back(tab);
 	}
-
-    
+ 
     // 处理鼠标点击事件
     void mouseClick(int mouseX, int mouseY)
     {
@@ -743,7 +897,7 @@ private:
 	// 初始化不同模块对应的按钮
     void initModuleButtons() {
 
-		int buttoncounts[] = { 2, 2, 2, 3, 3 }; //每个模块的按钮数量
+		int buttoncounts[] = { 2, 2, 2, 3, 6 }; //每个模块的按钮数量
         Functions f; int k = 0;
         for (int j = 0; j < modules.size(); j++)
         {
@@ -765,8 +919,10 @@ private:
             for (int i = 0; i < buttonCount; i++)
             {
                 Button* button = new Button(startX, startY + i * (buttonHeight + buttonSpacing), buttonWidth, buttonHeight, f.name[k], f.onClick[k]);
+              
                 ++k;
                 addButton(button, j);
+               
             }
         }
     }
@@ -776,6 +932,8 @@ public:
         :width(width), height(height)
     {
         modules.resize(5);
+        Dbutton = nullptr;
+
     }
 
     ~Widget() {

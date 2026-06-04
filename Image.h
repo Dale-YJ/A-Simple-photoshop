@@ -258,8 +258,25 @@ public:
         return dstImg;
     }
 
+    //计算两个图像的均方根误差
+    static double rootMeanSquareError(Image* img1,Image* img2) {
+        double res = 0.0;
+        int w = img1->getwidth();
+        int h = img1->getheight();
+        int sum = 0;
+        for (int j = 0; j < h; ++j) {
+            for (int i = 0; i < w; ++i) {
+                int value1 = img1->getPixel(i, j);
+                int value2 = img2->getPixel(i, j);
+                int error = value1 - value2;
+                sum += (error * error);
 
-    
+            }
+        }
+        res = (sum * 1.0) / (w * h * 1.0);
+        return sqrt(res);
+    }
+
 
     // 将自定义 Image 转换为 EasyX 的 IMAGE
     IMAGE convertToEasyXImage() {

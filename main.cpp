@@ -43,8 +43,42 @@
 //}
 
 
+//void testPredictiveDeCoding() {
+//    initgraph(1200, 700, EX_SHOWCONSOLE);
+//    Image* img = new Image();
+//    string path = OpenFileDialog();
+//    if (path == "") {
+//        MessageBox(NULL, L"没有选择文件", L"错误", MB_OK | MB_ICONERROR);
+//    }
+//    BMPIO::read(path, *img);
+//    vector<double>coeff;
+//    coeff.push_back(0.95);
+//    coeff.push_back(0);
+//    coeff.push_back(0);
+//    Image err = EnDecoding::losslessPredictiveEnCoding(*img, coeff);
+//    Image restore =EnDecoding::losslessPredictiveDeCoding(err, coeff);
+//    
+//    for (int j = 0; j < img->getheight(); ++j) {
+//        for (int i = 0; i < img->getwidth(); ++i) {
+//            int a = img->getPixel(i, j);
+//            int b= restore.getPixel(i, j);
+//            if (a != b) {
+//                cout << "fail" << endl;
+//                return;
+//            }
+//
+//        }
+//    }
+//    cout << "suc" << endl;
+//   
+//    _getch();
+//    //closegraph();
+//
+//}
+
 int main()
 {
+    //testPredictiveCoding();
     Widget widget(1200, 700);
     widget.init();
     widget.run();
