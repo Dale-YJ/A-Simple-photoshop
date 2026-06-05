@@ -504,7 +504,6 @@ public:
             return nullptr;
         }
 
-
         wchar_t sParams[50];
         InputBox(sParams, 50, L"请输入预测阶数和系数\n（格式：阶数,系数1,系数2,系数3...）\n例如：2,0.5,0.5\n只支持1-3阶");
 		vector<double> coefficients(3,0.0); //预测系数
@@ -548,7 +547,7 @@ public:
             MessageBox(NULL, L"无输入", L"错误", MB_OK | MB_ICONERROR);
             return nullptr;
         }
-		Image* res =new Image(EnDecoding::losslessPredictiveEnCoding(*img, coefficients)) ;
+        SpecialImage* res =new SpecialImage(EnDecoding::losslessPredictiveEnCoding(*img, coefficients)) ;
 
         return res;
     }
@@ -567,10 +566,11 @@ public:
         }
         //待处理的图像
         Image* img = (*images)[index];
-        if (img->getType() != Image::Gray) {
+        if (img->getType() != Image::Special) {
             MessageBox(NULL, L"图像格式无效", L"错误", MB_OK | MB_ICONERROR);
             return nullptr;
         }
+		SpecialImage* specialImg = static_cast<SpecialImage*>(img);
 
         wchar_t sParams[50];
         InputBox(sParams, 50, L"请输入预测阶数和系数\n（格式：阶数,系数1,系数2,系数3...）\n例如：2,0.5,0.5\n只支持1-3阶");
@@ -614,7 +614,7 @@ public:
             MessageBox(NULL, L"无输入", L"错误", MB_OK | MB_ICONERROR);
             return nullptr;
         }
-        Image* res = new Image(EnDecoding::losslessPredictiveDeCoding(*img, coefficients));
+        Image* res = new Image(EnDecoding::losslessPredictiveDeCoding(*specialImg, coefficients));
 
         return res;
     }
@@ -708,12 +708,31 @@ public:
             return nullptr;
         }
 
-        SpecialImage* dimage = new SpecialImage(EnDecoding::dct(*img, size));
+		double keepRatio = 1.0;
+        wchar_t sParams[50] = { 0 };
+        InputBox(sParams, 50, L"请输入保留比例\n即每块中保留的系数比例\n不输入或输入错误默认为1.0");
+        // 检查用户是否输入了内容（非空字符串）
+        if (sParams[0] != L'\0') {  // 若第一个字符不是结束符，说明有输入
+            wchar_t* endPtr = nullptr;  // 用于接收转换结束的位置
+            double tempRatio = wcstod(sParams, &endPtr);  // 宽字符转 double
+
+            // 验证输入是否有效（排除空输入或非数字）
+            if (endPtr != sParams && tempRatio >= 0.0 && tempRatio <= 1.0) {  // 若转换成功（至少解析到一个数字）
+                keepRatio = tempRatio;
+            }
+            else {
+                keepRatio = 1.0; // 若输入无效（如非数字），可保持默认值 1.0
+            }
+           
+
+        }
+        SpecialImage* dimage = new SpecialImage(EnDecoding::dct(*img, size, keepRatio));
         
-    
+		cout << "DCT变换完成，保留比例：" << keepRatio << endl;
+		cout << "生成图像大小:  " << dimage->getWidth() << "x" << dimage->getHeight() << endl;
+        
         return dimage;
     }
-    
     //反DCT变换
     static void* func15(void* image = nullptr, int index = 0) {
         //整个图像序列
@@ -737,7 +756,6 @@ public:
 
 		SpecialImage* simage = static_cast<SpecialImage*>(img);
 
- 
         wchar_t s[50];
         InputBox(s, 50, L"请输入分块大小\n");
         int size = _wtoi(s);
@@ -748,6 +766,8 @@ public:
 
         Image* res = new Image(EnDecoding::iverseDct(*simage, size));
 
+        cout << "DCT反变换完成 " << endl;
+        cout << "还原图像大小:  " << res->getwidth() << "x" << res->getheight() << endl;
         return res;
     }
    

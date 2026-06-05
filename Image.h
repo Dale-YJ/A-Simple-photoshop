@@ -166,8 +166,6 @@ public:
         return value &0xff;
     }
 
-
-
     // 双三次插值权重函数
     static double cubicInterpolation(double x) {
         double absX = fabs(x);
@@ -179,9 +177,7 @@ public:
         }
         return 0.0;
     }
-
-       
-    
+  
     static IMAGE resize(IMAGE* srcImg, int newWidth, int newHeight) {
 
 		float xRatio = (newWidth*1.0/(srcImg->getwidth()*1.0) );
@@ -190,8 +186,6 @@ public:
 		saveimage(L"temp.bmp", srcImg);
 
 		IMAGE dstImg (newWidth, newHeight);
-		
-
         loadimage(&dstImg, L"temp.bmp", newWidth, newHeight);
 
 		return dstImg;

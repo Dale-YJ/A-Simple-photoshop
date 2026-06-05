@@ -8,9 +8,9 @@ constexpr double M_PI = 3.1415926;
 class EnDecoding {
 public:
 	//无损预测编码,coefficient是预测系数
-	static Image losslessPredictiveEnCoding(const Image& img,const vector<double>& coefficients);
+	static SpecialImage losslessPredictiveEnCoding(const Image& img,const vector<double>& coefficients);
 	//无损预测解码
-	static Image losslessPredictiveDeCoding(const Image& img,const vector<double>& coefficients);
+	static Image losslessPredictiveDeCoding(const SpecialImage& img,const vector<double>& coefficients);
 
 	//均匀量化
 	static Image uniformQuantization(const Image& img, int bitsPerPixel);
