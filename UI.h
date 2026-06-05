@@ -403,7 +403,8 @@ public:
         L"均匀量化",L"IGS", L"DCT变换编码",L"反DCT变换"};
     
     vector<function<void*(void*,int)>> onClick; // 点击按钮触发的函数族
-
+    // 辅助函数：OTSU自动阈值计算
+    static int calculateOtsuThreshold(const Image& img);
 	//bmp文件读入,index是当前图像在图像列表中的索引，
     // 函数可以根据这个索引对图像列表进行修改
     static void* func1(void*image=nullptr,int index=-1) {
@@ -456,23 +457,505 @@ public:
         return nullptr;
     }
     
-    //从原图中裁减一个小图 
+    // ======================== func3：图像裁剪 ========================
+ // 功能：从原图中裁减一个小图，允许用户设置裁剪参数（左上角坐标、宽度、高度）
     static void* func3(void* image = nullptr, int index = 0) {
 
-        return nullptr;
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+
+        if (images->size() == 0) {
+            MessageBox(NULL, L"没有图像可以处理", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"图像索引无效", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* srcImg = (*images)[index];
+        int srcWidth = srcImg->getwidth();
+        int srcHeight = srcImg->getheight();
+
+        // 显示当前图像尺寸
+        wchar_t infoBuf[256];
+        swprintf_s(infoBuf, 256, L"当前图像尺寸：%d x %d\n请设置裁剪参数", srcWidth, srcHeight);
+        MessageBox(NULL, infoBuf, L"图像信息", MB_OK | MB_ICONINFORMATION);
+
+        // 输入裁剪参数
+        wchar_t params[100];
+        wchar_t prompt[256];
+        swprintf_s(prompt, 256, L"请输入裁剪参数\n格式：x,y,width,height\n图像尺寸：%d x %d\n示例：0,0,100,100",
+            srcWidth, srcHeight);
+
+        InputBox(params, 100, prompt);
+
+        // 解析参数
+        int x = 0, y = 0, w = 0, h = 0;
+        wchar_t* context = nullptr;
+        wchar_t* token = wcstok_s(params, L",", &context);
+
+        if (token != nullptr) {
+            x = _wtoi(token);
+            token = wcstok_s(nullptr, L",", &context);
+            if (token != nullptr) {
+                y = _wtoi(token);
+                token = wcstok_s(nullptr, L",", &context);
+                if (token != nullptr) {
+                    w = _wtoi(token);
+                    token = wcstok_s(nullptr, L",", &context);
+                    if (token != nullptr) {
+                        h = _wtoi(token);
+                    }
+                }
+            }
+        }
+
+        // 参数有效性检查
+        if (w <= 0 || h <= 0) {
+            MessageBox(NULL, L"错误：裁剪宽度和高度必须大于0", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (x < 0 || y < 0) {
+            MessageBox(NULL, L"错误：裁剪起始坐标不能为负数", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (x + w > srcWidth || y + h > srcHeight) {
+            wchar_t errorBuf[512];
+            swprintf_s(errorBuf, 512, L"错误：裁剪区域超出图像范围！\n图像范围：[0, %d] x [0, %d]\n裁剪区域：[%d, %d] x [%d, %d]",
+                srcWidth, srcHeight, x, x + w, y, y + h);
+            MessageBox(NULL, errorBuf, L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        // 执行裁剪
+        Image* result = new Image(CropSlice::crop(*srcImg, x, y, w, h));
+
+        // 显示结果并询问是否保存
+        wchar_t resultBuf[256];
+        swprintf_s(resultBuf, 256, L"裁剪成功！\n裁剪区域：(%d, %d) 尺寸：%d x %d\n是否保存到硬盘？",
+            x, y, w, h);
+
+        int saveChoice = MessageBox(NULL, resultBuf, L"提示", MB_YESNO | MB_ICONQUESTION);
+
+        if (saveChoice == IDYES) {
+            string folderPath = OpenFolderDialog();
+            if (folderPath != "") {
+                string filepath = folderPath + "\\crop_result.bmp";
+                if (BMPIO::write(filepath, *result)) {
+                    MessageBox(NULL, L"裁剪图像已保存到硬盘", L"提示", MB_OK | MB_ICONINFORMATION);
+                }
+                else {
+                    MessageBox(NULL, L"保存失败", L"错误", MB_OK | MB_ICONERROR);
+                }
+            }
+        }
+
+        return result;
     }
-    
-    //将原图切割为多个小图
+
+    // ======================== func4：图像切割 ========================
+    // 功能：将原图切割为多个小图，允许用户设置小图尺寸（宽度和高度）
     static void* func4(void* image = nullptr, int index = 0) {
 
-        return nullptr;
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+
+        if (images->size() == 0) {
+            MessageBox(NULL, L"没有图像可以处理", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"图像索引无效", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* srcImg = (*images)[index];
+        int srcWidth = srcImg->getwidth();
+        int srcHeight = srcImg->getheight();
+
+        // 显示当前图像尺寸
+        wchar_t infoBuf[256];
+        swprintf_s(infoBuf, 256, L"当前图像尺寸：%d x %d\n请输入切割块尺寸", srcWidth, srcHeight);
+        MessageBox(NULL, infoBuf, L"图像信息", MB_OK | MB_ICONINFORMATION);
+
+        // 输入切割参数（块宽度和块高度）
+        wchar_t params[100];
+        wchar_t prompt[256];
+        swprintf_s(prompt, 256, L"请输入切割块尺寸\n格式：blockWidth,blockHeight\n图像尺寸：%d x %d\n示例：100,100",
+            srcWidth, srcHeight);
+
+        InputBox(params, 100, prompt);
+
+        // 解析参数
+        int blockW = 0, blockH = 0;
+        wchar_t* context = nullptr;
+        wchar_t* token = wcstok_s(params, L",", &context);
+
+        if (token != nullptr) {
+            blockW = _wtoi(token);
+            token = wcstok_s(nullptr, L",", &context);
+            if (token != nullptr) {
+                blockH = _wtoi(token);
+            }
+        }
+
+        // 参数有效性检查
+        if (blockW <= 0 || blockH <= 0) {
+            MessageBox(NULL, L"错误：切割块宽度和高度必须大于0", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (blockW > srcWidth || blockH > srcHeight) {
+            MessageBox(NULL, L"错误：切割块尺寸不能大于原图像尺寸", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        // 计算可以切割的块数
+        int cols = srcWidth / blockW;   // 水平方向块数
+        int rows = srcHeight / blockH;  // 垂直方向块数
+
+        if (cols == 0 || rows == 0) {
+            MessageBox(NULL, L"错误：切割块尺寸太大，无法切割出完整块", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        int totalBlocks = cols * rows;
+        int actualWidth = cols * blockW;
+        int actualHeight = rows * blockH;
+
+        // 显示切割信息并确认
+        wchar_t confirmBuf[512];
+        swprintf_s(confirmBuf, 512,
+            L"切割信息：\n"
+            L"原图尺寸：%d x %d\n"
+            L"块尺寸：%d x %d\n"
+            L"切割数量：%d 行 x %d 列 = %d 块\n"
+            L"实际切割区域：%d x %d\n"
+            L"（边缘不足一块的部分将被丢弃）\n\n"
+            L"是否继续？",
+            srcWidth, srcHeight, blockW, blockH, rows, cols, totalBlocks, actualWidth, actualHeight);
+
+        int confirm = MessageBox(NULL, confirmBuf, L"确认切割", MB_YESNO | MB_ICONQUESTION);
+        if (confirm != IDYES) {
+            return nullptr;
+        }
+
+        // 执行切割
+        vector<Image> subImages = CropSlice::slice(*srcImg, blockW, blockH);
+
+        if (subImages.empty()) {
+            MessageBox(NULL, L"切割失败，未生成任何子图", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        // 将切割得到的子图添加到新的图像列表中
+        vector<Image*>* resultImages = new vector<Image*>();
+        for (auto& subImg : subImages) {
+            resultImages->push_back(new Image(subImg));
+        }
+
+        // 询问是否保存到硬盘
+        wchar_t saveBuf[256];
+        swprintf_s(saveBuf, 256, L"切割成功！共获得 %d 张子图。\n是否将所有子图保存到硬盘？", (int)subImages.size());
+        int saveChoice = MessageBox(NULL, saveBuf, L"提示", MB_YESNO | MB_ICONQUESTION);
+
+        if (saveChoice == IDYES) {
+            string folderPath = OpenFolderDialog();
+            if (folderPath != "") {
+                int successCount = 0;
+                for (size_t i = 0; i < subImages.size(); i++) {
+                    string filepath = folderPath + "\\subimage_" + to_string(i) + ".bmp";
+                    if (BMPIO::write(filepath, subImages[i])) {
+                        successCount++;
+                    }
+                }
+
+                wchar_t resultBuf[256];
+                swprintf_s(resultBuf, 256, L"已保存 %d / %d 张子图到硬盘", successCount, (int)subImages.size());
+                MessageBox(NULL, resultBuf, L"提示", MB_OK | MB_ICONINFORMATION);
+            }
+        }
+
+        // 将切割结果作为新的图像列表返回，方便用户逐个查看
+        return resultImages;
     }
-   
+
+    // ======================== func5：灰度转二值（三种方法） ========================
+    // 功能：将灰度图像转换为黑白图像
+    // 方法1：单阈值法 - 允许用户设置阈值
+    // 方法2：Floyd-Steinberg误差扩散抖动法
+    // 方法3：有序抖动法(Ordered Dither) - 允许用户设置矩阵大小
     static void* func5(void* image = nullptr, int index = 0) {
-        return nullptr;
+
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+
+        if (images->size() == 0) {
+            MessageBox(NULL, L"没有图像可以处理", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"图像索引无效", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* srcImg = (*images)[index];
+
+        // 检查是否为灰度图像
+        if (srcImg->getType() != Image::Gray && srcImg->getbitcount() != 8) {
+            MessageBox(NULL,
+                L"错误：当前图像不是灰度图像！\n"
+                L"gray to binary 只能处理8-bit灰度图像。\n"
+                L"请先使用\"color to gray\"功能将图像转换为灰度图像。",
+                L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        // 选择二值化方法
+        int methodChoice = MessageBox(NULL,
+            L"╔══════════════════════════════════════════════════════╗\n"
+            L"║          灰度转二值图像 - 请选择方法                ║\n"
+            L"╠══════════════════════════════════════════════════════╣\n"
+            L"║  是   - 方法1：单阈值法                              ║\n"
+            L"║  否   - 方法2：Floyd-Steinberg误差扩散抖动法        ║\n"
+            L"║  取消 - 方法3：有序抖动法(Ordered Dither)           ║\n"
+            L"╚══════════════════════════════════════════════════════╝",
+            L"选择二值化方法", MB_YESNOCANCEL | MB_ICONQUESTION);
+
+        ModeConvert converter;
+        Image* result = nullptr;
+
+        // ==================== 方法1：单阈值法 ====================
+        if (methodChoice == IDYES) {
+
+            // 输入阈值
+            wchar_t s[20];
+            InputBox(s, 20, L"请输入阈值（0-255）\n\n像素值 > 阈值 设为白色(1)\n像素值 <= 阈值 设为黑色(0)", L"128");
+            int threshold = _wtoi(s);
+
+            // 阈值范围检查
+            if (threshold < 0) threshold = 0;
+            if (threshold > 255) threshold = 255;
+
+            // 执行单阈值法二值化
+            result = new Image(converter.grayToBinaryT(*srcImg, threshold));
+
+            // 显示结果
+            wchar_t msgBuf[256];
+            swprintf_s(msgBuf, 256, L"单阈值法完成！\n阈值：%d\n\n图像已转换为黑白图像", threshold);
+            MessageBox(NULL, msgBuf, L"处理完成", MB_OK | MB_ICONINFORMATION);
+
+            // ==================== 方法2：Floyd-Steinberg误差扩散抖动法 ====================
+        }
+        else if (methodChoice == IDNO) {
+
+            // 显示算法说明
+            MessageBox(NULL,
+                L"Floyd-Steinberg误差扩散抖动法\n\n"
+                L"算法原理：\n"
+                L"将量化误差按权重扩散到相邻的未处理像素：\n"
+                L"    X    7/16\n"
+                L"3/16  5/16  1/16\n\n"
+                L"特点：\n"
+                L"能够保留更多的图像细节\n"
+                L"视觉效果自然，适合有渐变区域的图像\n"
+                L"是目前最常用的抖动算法之一\n\n"
+                L"点击确定开始处理...",
+                L"算法说明", MB_OK);
+
+            // 执行Floyd-Steinberg误差扩散抖动法
+            result = new Image(converter.grayToBinaryD(*srcImg, 0));
+
+            MessageBox(NULL, L"Floyd-Steinberg误差扩散抖动法完成！\n\n图像已转换为黑白图像",
+                L"处理完成", MB_OK | MB_ICONINFORMATION);
+
+            // ==================== 方法3：有序抖动法 (Ordered Dither) ====================
+        }
+        else if (methodChoice == IDCANCEL) {
+
+            // 选择Bayer矩阵大小
+            int matrixChoice = MessageBox(NULL,
+                L"有序抖动法(Ordered Dither) - 请选择Bayer矩阵大小\n\n"
+                L"是   - 2x2矩阵（效果较差，速度快）\n"
+                L"否   - 4x4矩阵（效果中等）\n"
+                L"取消 - 8x8矩阵（效果最好，推荐）",
+                L"选择矩阵大小", MB_YESNOCANCEL | MB_ICONQUESTION);
+
+            int matrixSize = 8;  // 默认8x8
+            const wchar_t* sizeDesc = L"8x8";
+
+            if (matrixChoice == IDYES) {
+                matrixSize = 2;
+                sizeDesc = L"2x2";
+            }
+            else if (matrixChoice == IDNO) {
+                matrixSize = 4;
+                sizeDesc = L"4x4";
+            }
+            else if (matrixChoice == IDCANCEL) {
+                matrixSize = 8;
+                sizeDesc = L"8x8";
+            }
+            else {
+                return nullptr;  // 用户取消
+            }
+
+            // 显示算法说明
+            wchar_t infoBuf[512];
+            swprintf_s(infoBuf, 512,
+                L"有序抖动法(Ordered Dither)\n\n"
+                L"Bayer矩阵大小：%s\n\n"
+                L"算法原理：\n"
+                L"使用Bayer矩阵作为阈值矩阵，对每个像素进行比较：\n"
+                L"if(像素值 > 阈值) 设为白色 else 设为黑色\n\n"
+                L"特点：\n"
+                L"矩阵越大，图像层次感越好\n"
+                L"适合打印输出场景\n"
+                L"计算速度快\n\n"
+                L"点击确定开始处理...", sizeDesc);
+
+            MessageBox(NULL, infoBuf, L"算法说明", MB_OK);
+
+            // 执行有序抖动法
+            result = new Image(converter.grayToBinaryOD(*srcImg, matrixSize));
+
+            wchar_t msgBuf[256];
+            swprintf_s(msgBuf, 256, L"有序抖动法完成！\nBayer矩阵大小：%s\n\n图像已转换为黑白图像", sizeDesc);
+            MessageBox(NULL, msgBuf, L"处理完成", MB_OK | MB_ICONINFORMATION);
+
+        }
+        else {
+            return nullptr;  // 用户取消
+        }
+
+        // 询问是否保存结果到硬盘
+        if (result != nullptr) {
+            int saveChoice = MessageBox(NULL,
+                L"处理完成！\n是否将二值图像保存到硬盘？",
+                L"提示", MB_YESNO | MB_ICONQUESTION);
+
+            if (saveChoice == IDYES) {
+                string folderPath = OpenFolderDialog();
+                if (folderPath != "") {
+                    // 根据方法生成不同的文件名
+                    string filename;
+                    if (methodChoice == IDYES) {
+                        filename = "binary_threshold.bmp";
+                    }
+                    else if (methodChoice == IDNO) {
+                        filename = "binary_floyd_steinberg.bmp";
+                    }
+                    else {
+                        filename = "binary_ordered_dither.bmp";
+                    }
+                    string filepath = folderPath + "\\" + filename;
+                    if (BMPIO::write(filepath, *result)) {
+                        MessageBox(NULL, L"二值图像已保存到硬盘", L"提示", MB_OK | MB_ICONINFORMATION);
+                    }
+                    else {
+                        MessageBox(NULL, L"保存失败", L"错误", MB_OK | MB_ICONERROR);
+                    }
+                }
+            }
+        }
+
+        return result;
     }
+
+    // ======================== func6：彩色转灰度 ========================
+    // 功能：将真彩图像（24-bit或32-bit）转换为灰度图像（8-bit）
+    // 算法：使用亮度公式 Y = 0.299R + 0.587G + 0.114B
     static void* func6(void* image = nullptr, int index = 0) {
-        return nullptr;
+
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+
+        if (images->size() == 0) {
+            MessageBox(NULL, L"没有图像可以处理", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"图像索引无效", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* srcImg = (*images)[index];
+        int bitCount = srcImg->getbitcount();
+
+        // 检查是否为彩色图像（24-bit或32-bit）
+        if (bitCount != 24 && bitCount != 32) {
+            // 如果是灰度图像，提示无需转换
+            if (bitCount == 8) {
+                MessageBox(NULL,
+                    L"当前图像已经是灰度图像（8-bit），无需转换。\n\n"
+                    L"如需再次转换，请选择彩色图像。",
+                    L"提示", MB_OK | MB_ICONINFORMATION);
+                return nullptr;
+            }
+            // 如果是二值图像
+            else if (bitCount == 1) {
+                MessageBox(NULL,
+                    L"当前图像是二值图像（1-bit），无法转换为灰度图像。\n\n"
+                    L"请选择24-bit或32-bit彩色图像。",
+                    L"错误", MB_OK | MB_ICONERROR);
+                return nullptr;
+            }
+            else {
+                MessageBox(NULL,
+                    L"错误：当前图像不是彩色图像！\n\n"
+                    L"color to gray 只能处理24-bit或32-bit真彩图像。",
+                    L"错误", MB_OK | MB_ICONERROR);
+                return nullptr;
+            }
+        }
+
+        // 显示算法说明
+        MessageBox(NULL,
+            L"彩色转灰度算法说明\n\n"
+            L"转换公式（亮度公式）：\n"
+            L"Y = 0.299 * R + 0.587 * G + 0.114 * B\n\n"
+            L"其中：\n"
+            L"Y 为输出灰度值（0-255）\n"
+            L"R、G、B 为彩色图像的三个颜色分量\n\n"
+            L"点击确定开始处理...",
+            L"算法说明", MB_OK);
+
+        // 执行彩色转灰度
+        ModeConvert converter;
+        Image* result = new Image(converter.colorToGray(*srcImg));
+
+        // 显示结果
+        wchar_t msgBuf[256];
+        swprintf_s(msgBuf, 256,
+            L"彩色转灰度完成！\n\n"
+            L"原图像：%d-bit 彩色图像\n"
+            L"结果：8-bit 灰度图像\n"
+            L"尺寸：%d x %d",
+            bitCount, result->getwidth(), result->getheight());
+        MessageBox(NULL, msgBuf, L"处理完成", MB_OK | MB_ICONINFORMATION);
+
+        // 询问是否保存到硬盘
+        int saveChoice = MessageBox(NULL,
+            L"是否将灰度图像保存到硬盘？",
+            L"提示", MB_YESNO | MB_ICONQUESTION);
+
+        if (saveChoice == IDYES) {
+            string folderPath = OpenFolderDialog();
+            if (folderPath != "") {
+                string filepath = folderPath + "\\gray_image.bmp";
+                if (BMPIO::write(filepath, *result)) {
+                    MessageBox(NULL, L"灰度图像已保存到硬盘", L"提示", MB_OK | MB_ICONINFORMATION);
+                }
+                else {
+                    MessageBox(NULL, L"保存失败", L"错误", MB_OK | MB_ICONERROR);
+                }
+            }
+        }
+
+        return result;
     }
     static void* func7(void* image = nullptr, int index = 0) {
         return nullptr;
@@ -803,15 +1286,15 @@ private:
     {
         // 绘制图像
         if (!images.empty()) {
-            
+
             IMAGE img = (images[imageIndex])->convertToEasyXImage(); // 显示最新的图像
 
-            int x = buttons[0]->getX() + buttons[0]->getWidth() + 20; 
+            int x = buttons[0]->getX() + buttons[0]->getWidth() + 20;
             // 图像显示在按钮右侧，留出20像素的间距
-			int y = height/7;
+            int y = height / 7;
             // 设置最大显示尺寸（可以根据需要调整）
             int maxDisplayWidth = tabs[0]->getX() - x - 20;  // 右侧与选项卡留20像素边距
-            int maxDisplayHeight = height-height *2/ 7; // 底部留20像素边距
+            int maxDisplayHeight = height - height * 2 / 7; // 底部留20像素边距
 
             // 绘制图像背景（可选，用于区分图像区域）
             setfillcolor(RGB(240, 240, 240));  // 浅灰色背景
@@ -840,8 +1323,8 @@ private:
             int scaledHeight = (int)(imgHeight * scale);
 
 
-			//IMAGE* res=Image::resizeImageBicubic(&img, scaledWidth, scaledHeight); // 使用双三次插值缩放图像
-			IMAGE res = Image::resize(&img, scaledWidth, scaledHeight); // 使用简单缩放方法缩放图像
+            //IMAGE* res=Image::resizeImageBicubic(&img, scaledWidth, scaledHeight); // 使用双三次插值缩放图像
+            IMAGE res = Image::resize(&img, scaledWidth, scaledHeight); // 使用简单缩放方法缩放图像
 
             // 计算居中显示的位置（在按钮右侧区域内）
             int centeredX = x + (maxDisplayWidth - scaledWidth) / 2;
@@ -849,36 +1332,36 @@ private:
             putimage(centeredX, centeredY, &res); // 在指定位置绘制图像
 
 
-			// 提示信息：当前展示的图像索引和总图像数量
+            // 提示信息：当前展示的图像索引和总图像数量
             settextcolor(BLACK);
             settextstyle(15, 0, _T("宋体"));
 
-			//文本右侧对齐显示
+            //文本右侧对齐显示
             wstring text = L"当前图像: " + to_wstring(imageIndex + 1) + L"/" + to_wstring(images.size());
-			int textX = x + maxDisplayWidth - textwidth(text.c_str()); 
+            int textX = x + maxDisplayWidth - textwidth(text.c_str());
             // 右侧对齐，留10像素边距
-			int textY = y + maxDisplayHeight - textheight(text.c_str()); // 图像下方，留10像素边距
+            int textY = y + maxDisplayHeight - textheight(text.c_str()); // 图像下方，留10像素边距
 
-            outtextxy(textX, textY,text.c_str());
+            outtextxy(textX, textY, text.c_str());
 
-			
-          
+
+
         }
         // 绘制按钮和选项卡
-		Dbutton->draw(); // 绘制删除图像的按钮
-        for(TextureButton* tButton : tButtons)
+        Dbutton->draw(); // 绘制删除图像的按钮
+        for (TextureButton* tButton : tButtons)
         {
             tButton->draw(); // 绘制当前页面上的所有选择按钮
-		}
+        }
 
         for (Button* button : buttons)
         {
             button->draw(); // 绘制当前页面上的所有按钮
         }
-        for(Tab* tab : tabs)
+        for (Tab* tab : tabs)
         {
             tab->draw(); // 显示当前页面上的所有选项卡
-		}
+        }
     }
       
     
