@@ -805,8 +805,7 @@ private:
     // 处理鼠标点击事件
     void mouseClick(int mouseX, int mouseY)
     {
-		Dbutton->checkClick(mouseX, mouseY, &images); // 检查删除按钮是否被点击
-
+		
         for(TextureButton* tButton : tButtons)
         {
             if (tButton->checkClick(mouseX, mouseY)) {
@@ -826,6 +825,7 @@ private:
                 return;
             }
 		}
+        Dbutton->checkClick(mouseX, mouseY, &images); // 检查删除按钮是否被点击
 
         for(Tab* tab : tabs)
         {
@@ -1074,7 +1074,7 @@ public:
 
         /////////////////图像删除按钮////////////////////////////////////
         
-        Dbutton= new Button(initx, inity + initheight * 3, initwidth, initheight, L"删除图像", [this](void* img,int index) {
+        Dbutton= new Button(initx, inity + initheight * 6, initwidth, initheight, L"删除图像", [this](void* img,int index) {
 
             if (!images.empty()) {
                 if (0 <= imageIndex&&imageIndex<images.size()) {
