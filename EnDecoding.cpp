@@ -1,31 +1,32 @@
-#include "EnDecoding.h"
+ï»¿#include "EnDecoding.h"
 #include <cmath>
 
-//ËùÓĞµÄ³ö´í¼ìÑéÔÚÍâ²¿functionÖĞ½øĞĞ£¬ÕâÀï¼ÙÉèÊäÈëµÄ²ÎÊı¶¼ÊÇºÏ·¨µÄ
 
-//ÎŞËğÔ¤²â±àÂë,coefficientÊÇÔ¤²âÏµÊı
+//æ‰€æœ‰çš„å‡ºé”™æ£€éªŒåœ¨å¤–éƒ¨functionä¸­è¿›è¡Œï¼Œè¿™é‡Œå‡è®¾è¾“å…¥çš„å‚æ•°éƒ½æ˜¯åˆæ³•çš„
+
+//æ— æŸé¢„æµ‹ç¼–ç ,coefficientæ˜¯é¢„æµ‹ç³»æ•°
 Image EnDecoding::losslessPredictiveEnCoding(const Image& img,const vector<double>& coefficients) {
 
 	int w = img.getwidth();
 	int h = img.getheight();
-	//´ı·µ»ØµÄ²Ğ²îÍ¼Ïñ£¬Ê¹ÓÃÓëÊäÈëÍ¼ÏñÏàÍ¬µÄ³ß´çºÍÀàĞÍ
+	//å¾…è¿”å›çš„æ®‹å·®å›¾åƒï¼Œä½¿ç”¨ä¸è¾“å…¥å›¾åƒç›¸åŒçš„å°ºå¯¸å’Œç±»å‹
 	Image errImg(w, h,img.getbitcount(),img.getType());
 
 	for (int j = 0; j < h; ++j) {
 		for (int i = 0; i < w; ++i) {
-			int left = (i > 0) ? img.getPixel(i - 1, j) : 128; // ×ó±ßÏñËØÖµ
-			int up = (j > 0) ? img.getPixel(i, j - 1) : 128; // ÉÏ±ßÏñËØÖµ
-			int leftUp = (i > 0 && j > 0) ? img.getPixel(i - 1, j - 1) : 128; // ×óÉÏÏñËØÖµ
+			int left = (i > 0) ? img.getPixel(i - 1, j) : 128; // å·¦è¾¹åƒç´ å€¼
+			int up = (j > 0) ? img.getPixel(i, j - 1) : 128; // ä¸Šè¾¹åƒç´ å€¼
+			int leftUp = (i > 0 && j > 0) ? img.getPixel(i - 1, j - 1) : 128; // å·¦ä¸Šåƒç´ å€¼
 		
 			double predictedValue = left * coefficients[0] + up * coefficients[1] + leftUp * coefficients[2];	
-			int trunkpredictedValue = static_cast<int>(predictedValue);//½Ø¶Ï
-			int error = img.getPixel(i, j) - trunkpredictedValue; // ¼ÆËã²Ğ²î
+			int trunkpredictedValue = static_cast<int>(predictedValue);//æˆªæ–­
+			int error = img.getPixel(i, j) - trunkpredictedValue; // è®¡ç®—æ®‹å·®
 			errImg.setPixel(i, j, error); // 
 		}
 	}
 	return errImg;
 }
-//ÎŞËğÔ¤²â½âÂë
+//æ— æŸé¢„æµ‹è§£ç 
 Image EnDecoding::losslessPredictiveDeCoding(const Image& img,const vector<double>& coefficients) {
 
 	int w = img.getwidth();
@@ -35,14 +36,14 @@ Image EnDecoding::losslessPredictiveDeCoding(const Image& img,const vector<doubl
 	for (int j = 0; j < h; ++j) {
 		for (int i = 0; i < w; ++i) {
 
-			int left = (i > 0) ? res.getPixel(i - 1, j) : 128; // ×ó±ßÏñËØÖµ
-			int up = (j > 0) ? res.getPixel(i, j - 1) : 128; // ÉÏ±ßÏñËØÖµ
-			int leftUp = (i > 0 && j > 0) ? res.getPixel(i - 1, j - 1) : 128; // ×óÉÏÏñËØÖµ
+			int left = (i > 0) ? res.getPixel(i - 1, j) : 128; // å·¦è¾¹åƒç´ å€¼
+			int up = (j > 0) ? res.getPixel(i, j - 1) : 128; // ä¸Šè¾¹åƒç´ å€¼
+			int leftUp = (i > 0 && j > 0) ? res.getPixel(i - 1, j - 1) : 128; // å·¦ä¸Šåƒç´ å€¼
 			
 			double predictedValue = left * coefficients[0] + up * coefficients[1] + leftUp * coefficients[2];
-			int trunkpredictedValue = static_cast<int>(predictedValue);//½Ø¶Ï
+			int trunkpredictedValue = static_cast<int>(predictedValue);//æˆªæ–­
 
-			//ÕæÊµÖµµÈÓÚÔ¤²âÖµ¼ÓÉÏ²Ğ²î
+			//çœŸå®å€¼ç­‰äºé¢„æµ‹å€¼åŠ ä¸Šæ®‹å·®
 			int trueValue = trunkpredictedValue + img.getPixel(i, j);
 			res.setPixel(i, j, trueValue);
 		}
@@ -52,17 +53,17 @@ Image EnDecoding::losslessPredictiveDeCoding(const Image& img,const vector<doubl
 }
 
 
-//ÊµÏÖ8 - bit»Ò¶ÈÍ¼ÏñµÄ¾ùÔÈÁ¿»¯£¬
-//¾ùÔÈÁ¿»¯
+//å®ç°8 - bitç°åº¦å›¾åƒçš„å‡åŒ€é‡åŒ–ï¼Œ
+//å‡åŒ€é‡åŒ–
 Image EnDecoding::uniformQuantization(const Image& img, int bitsPerPixel) {
 	
-	//const int shift = 8 - bitsPerPixel;       // ÓÒÒÆÎ»Êı£¨8Î»Í¼Ïñ¼õÈ¥Ä¿±ê±ÈÌØÊı£©
-	//const int step = 1 << shift;              // Á¿»¯²½³¤£¨Ã¿¸öÇø¼äµÄ¿í¶È£©
-	//const int halfStep = step >> 1;           // Çø¼äÖĞµãÆ«ÒÆÁ¿£¨²½³¤µÄÒ»°ë£©
+	//const int shift = 8 - bitsPerPixel;       // å³ç§»ä½æ•°ï¼ˆ8ä½å›¾åƒå‡å»ç›®æ ‡æ¯”ç‰¹æ•°ï¼‰
+	//const int step = 1 << shift;              // é‡åŒ–æ­¥é•¿ï¼ˆæ¯ä¸ªåŒºé—´çš„å®½åº¦ï¼‰
+	//const int halfStep = step >> 1;           // åŒºé—´ä¸­ç‚¹åç§»é‡ï¼ˆæ­¥é•¿çš„ä¸€åŠï¼‰
 	
-	//Á¿»¯ºóµÄ¼¶Êı
+	//é‡åŒ–åçš„çº§æ•°
 	int level = 1 << bitsPerPixel;
-	//Á¿»¯¼ä¸ô
+	//é‡åŒ–é—´éš”
 	int delta = 256 / level;
 
 	int w = img.getwidth();
@@ -73,7 +74,7 @@ Image EnDecoding::uniformQuantization(const Image& img, int bitsPerPixel) {
 		for (int i = 0; i < w; ++i) {
 			int quantizedValue = 0;
 			int originValue = img.getPixel(i, j);
-			//q(s)=si+¦¤/2
+			//q(s)=si+Î”/2
 			quantizedValue = originValue / delta * delta + delta / 2;
 			//quantizedValue = ((originValue >> shift) << shift) | halfStep;
 
@@ -84,15 +85,15 @@ Image EnDecoding::uniformQuantization(const Image& img, int bitsPerPixel) {
 }
 
 
-//IGSÁ¿»¯
-// ÊµÏÖ8-bit»Ò¶ÈÍ¼ÏñµÄÑ¹Ëõ±ÈÎª2(¼´bitsPerpixelÎª4)µÄ¾ùÔÈÁ¿»¯¸Ä½ø°æIGS£¬
+//IGSé‡åŒ–
+// å®ç°8-bitç°åº¦å›¾åƒçš„å‹ç¼©æ¯”ä¸º2(å³bitsPerpixelä¸º4)çš„å‡åŒ€é‡åŒ–æ”¹è¿›ç‰ˆIGSï¼Œ
 Image EnDecoding::IGSQuantization(const Image& img) {
 
 	int w = img.getwidth();
 	int h = img.getheight();
 	Image res(w, h, img.getbitcount(), img.getType());
 
-	//¶ÔË®Æ½·½ÏòµÄ´¦Àí¸üºÃ
+	//å¯¹æ°´å¹³æ–¹å‘çš„å¤„ç†æ›´å¥½
 	int sum = 0;
 	for (int j = 0; j < h; ++j) {
 		for (int i = 0; i < w; ++i) {
@@ -110,26 +111,106 @@ Image EnDecoding::IGSQuantization(const Image& img) {
 
 
 
-//DCT±ä»»±àÂë
-//sizeÊÇ·Ö¿éµÄ´óĞ¡
-//ÊµÏÖ8 - bit»Ò¶ÈÍ¼ÏñµÄ·Ö¿éDCT±ä»»£¬ÔÊĞíÓÃ»§ÉèÖÃ·Ö¿é´óĞ¡£¬²¢½«±ä»»½á¹ûÒÔÍ¼ÏñµÄ·½Ê½ÔÚ´°¿ÚÏÔÊ¾»òÒÔBMP¸ñÊ½´æ´¢ÖÁÓ²ÅÌ
-//¶Ô²½Öè1µÃµ½±ä»»½á¹û½øĞĞDCT·´±ä»»£¬½«·´±ä»»½á¹û£¨¼´»Ö¸´Í¼Ïñ£©ÔÚ´°¿ÚÏÔÊ¾»òÒÔBMP¸ñÊ½´æ´¢ÖÁÓ²ÅÌ£¬²¢ÓëÔ­Ê¼µÄÍ¼Ïñ½øĞĞ¶Ô±È
+//DCTå˜æ¢ç¼–ç 
+//sizeæ˜¯åˆ†å—çš„å¤§å°,keepRatioæ˜¯è¦ä¸¢æ‰çš„æ•°æ®æ¯”ä¾‹ï¼Œæ¯”å¦‚0.5ï¼Œè¡¨ç¤ºè¦ä¸¢æ‰50%çš„æ•°æ®
+//å®ç°8 - bitç°åº¦å›¾åƒçš„åˆ†å—DCTå˜æ¢ï¼Œå…è®¸ç”¨æˆ·è®¾ç½®åˆ†å—å¤§å°ï¼Œå¹¶å°†å˜æ¢ç»“æœä»¥å›¾åƒçš„æ–¹å¼åœ¨çª—å£æ˜¾ç¤ºæˆ–ä»¥BMPæ ¼å¼å­˜å‚¨è‡³ç¡¬ç›˜
 
-Image EnDecoding::dct(const Image& img, int size, float keepRatio) {
-	
-	Image res;
-	return res;
+SpecialImage EnDecoding::dct(const Image& img, int size, float keepRatio) {
+	int W = img.getwidth();
+	int H = img.getheight();
+
+	// è®¡ç®—åˆ†å—åçš„å°ºå¯¸ï¼ˆå‘ä¸Šå–æ•´ï¼Œä¸è¶³è¡¥é›¶ï¼‰
+	int newW = ((W + size - 1) / size) * size;
+	int newH = ((H + size - 1) / size) * size;
+	SpecialImage result(newW, newH);
+
+	// è·å–ZigZagé¡ºåºï¼ˆä½é¢‘â†’é«˜é¢‘ï¼‰
+	vector<std::pair<int, int>> zigzag = getZigZagOrder(size);
+	const int totalCoeffs = size * size;
+	const int keepNum = static_cast<int>(round(totalCoeffs * keepRatio)); // ä¿ç•™çš„ç³»æ•°æ•°é‡
+
+	// éå†æ‰€æœ‰åˆ†å—
+	for (int by = 0; by < newH; by += size) {
+		for (int bx = 0; bx < newW; bx += size) {
+			// æå–å½“å‰å—
+			vector<vector<double>> block(size,vector<double>(size));//å¾…å¤„ç†çš„å­å—
+			for (int i = 0; i < size; ++i) {
+				for (int j = 0; j < size; ++j) {
+					//iè¡Œ,jåˆ—
+					int x = bx + j;//åŸå›¾åƒä¸­çš„xåæ ‡
+					int y = by + i;
+					
+					if (x < W && y < H) {
+						block[i][j] = static_cast<double>(img.getPixel(x, y));
+					}
+					else {
+						//ä¸è¶³sizeçš„éƒ¨åˆ†è¡¥é›¶
+						block[i][j] = 0.0; // è¡¥é›¶
+					}
+				}
+			}
+
+			// æ‰§è¡ŒDCTå˜æ¢
+			vector<vector<double>> dctCoeff(size, std::vector<double>(size));
+			dctBlock(block, dctCoeff, size, size);
+
+			// æŒ‰ZigZagé¡ºåºä¿ç•™ç³»æ•°ï¼ˆå‰keepNumä¸ªä¸ºä½é¢‘ï¼Œå…¶ä½™ç½®0ï¼‰
+			for (int k = keepNum; k < totalCoeffs; ++k) {
+				const int r = zigzag[k].first;
+				const int c = zigzag[k].second;
+				dctCoeff[r][c] = 0.0;
+			}
+
+			for (int i = 0; i < size; ++i) {
+				for (int j = 0; j < size; ++j) {
+					int x = bx + j;
+					int y = by + i;
+					result.setPixel(x, y, dctCoeff[i][j]);
+				}
+			}
+		}
+	}
+	return result;
 }
 
 
+// DCT åå˜æ¢ç¼–ç 
+Image EnDecoding::iverseDct(const SpecialImage& img, int size) {
+	
+	int W = img.getWidth();
+	int H = img.getHeight();
+	
+	Image result(W, H, 8,Image::Gray);
 
+	// éå†æ‰€æœ‰åˆ†å—
+	for (int by = 0; by < H; by += size) {
+		for (int bx = 0; bx < W; bx += size) {
+			// ä»å›¾åƒä¸­æ¢å¤DCTç³»æ•°
+			vector<vector<double>> dctCoeff(size, vector<double>(size));
+			for (int i = 0; i < size; ++i) {
+				for (int j = 0; j < size; ++j) {
+					int x = bx + j;
+					int y = by + i;
+					dctCoeff[i][j] = img.getPixel(x, y);
+				}
+			}
+			// æ‰§è¡ŒIDCTåå˜æ¢
+			vector<vector<double>> block(size, vector<double>(size));
+			idctBlock(dctCoeff, block, size, size);
 
-// DCT ·´±ä»»±àÂë
-//½«²½Öè1µÃµ½±ä»»½á¹ûÈÓµô50 % µÄÊı¾İ£¨¼´½«Ã¿¿éÖĞ50 % µÄ¸ßÆµÏµÊıÓÃ0´úÌæ£©£¬
-// È»ºó½øĞĞDCT·´±ä»»£¬
-// ½«·´±ä»»½á¹û£¨¼´½âÑ¹Í¼Ïñ£©ÔÚ´°¿ÚÏÔÊ¾»òÒÔBMP¸ñÊ½´æ´¢ÖÁÓ²ÅÌ£¬²¢ÓëÔ­Ê¼Í¼Ïñ¡¢²½Öè2µÄ»Ö¸´Í¼Ïñ½øĞĞ¶Ô±È
-Image EnDecoding::iverseDct(const Image& img, int size, float keepRatio) {
-	//todo
-	Image res;
-	return res;
+			for (int i = 0; i < size; ++i) {
+				for (int j = 0; j < size; ++j) {
+					int x = bx + j;
+					int y = by + i;
+					if (x < result.getwidth() && y < result.getheight()) {
+						double pixel = block[i][j];
+						pixel = max(0.0, min(255.0, pixel));
+						result.setPixel(x, y, static_cast<int>(pixel));
+					}
+				}
+			}
+		}
+	}
+	return result;
+
 }

@@ -3,6 +3,7 @@
 */
 
 #pragma once
+#include <iostream>
 #include<vector>
 #include<string>
 #include<Windows.h>
@@ -21,10 +22,11 @@ public:
     enum Type {
         Binary,
         Gray,
-        Color
+        Color,
+        Special
     };
 
-private:
+protected:
     //图像的宽度
     int width = 0;
 
@@ -76,16 +78,12 @@ public:
 
     Image(int w, int h, int bc,Type t)
         : width(w), height(h), bitcount(bc),type(t) {
-        if (width <= 0 || height <= 0)
-            throw "Invalid image size.";
-
-        if (bitcount != 1 && bitcount != 8 &&
-            bitcount != 24 && bitcount != 32)
-            throw "Unsupported bit count.";
+    
 
         data.resize(static_cast<size_t>(width * height * bytesPerPixel()),0);
 
     }
+
 
     //获取像素值
     uint64_t getPixel(int x, int y) const {
@@ -189,12 +187,12 @@ public:
 		float xRatio = (newWidth*1.0/(srcImg->getwidth()*1.0) );
         float yRatio = (newHeight*1.0/(srcImg->getheight()*1.0));
 
-		saveimage(L"temp.jpg", srcImg);
+		saveimage(L"temp.bmp", srcImg);
 
 		IMAGE dstImg (newWidth, newHeight);
 		
 
-        loadimage(&dstImg, L"temp.jpg", newWidth, newHeight);
+        loadimage(&dstImg, L"temp.bmp", newWidth, newHeight);
 
 		return dstImg;
 
@@ -331,3 +329,48 @@ public:
 
 };
 
+
+
+class SpecialImage:public Image {
+private:
+    int width = 0;
+    int height = 0;
+    vector<vector<double>>* data;
+
+public:
+
+    vector<vector<double>>* getData() const {
+        return data;
+    }
+
+    int getWidth() const {
+        return width;
+    }
+    int getHeight() const {
+        return height;
+    }
+
+
+    ~SpecialImage() {
+        delete data;
+    }
+    SpecialImage() = default;
+    SpecialImage(int w, int h)
+        : width(w), height(h) {
+        data = new vector<vector<double>>(width, vector<double>(height, 0.0));
+		type = Special;
+    }
+
+    double getPixel(int x, int y) const {
+        if (x < 0 || x >= width || y < 0 || y >= height)
+            return 0.0; 
+        return (*data)[x][y];
+    }
+
+    bool setPixel(int x, int y, double value) {
+        if (x < 0 || x >= width || y < 0 || y >= height)
+            return false; // 无效坐标
+        (*data)[x][y] = value;
+        return true;
+    }
+};
