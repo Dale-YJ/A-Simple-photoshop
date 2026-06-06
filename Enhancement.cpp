@@ -127,15 +127,15 @@ Image Enhancement::histogramEqualization(const Image& img) {
 	//todo
     const int w = img.getwidth();
     const int h = img.getheight();
-    Image res(w, h, img.getbitcount(), img.gettype());
+    Image res(w, h, img.getbitcount(), img.getType());
 
     //二值图不处理
-    if (img.gettype() == 0) return img;
+    if (img.getType() == 0) return img;
 
     //CLAHE参数
     const int    TILE_GRID_X = 8;//水平瓦片数
     const int    TILE_GRID_Y = 8;//垂直瓦片数
-    const double CLIP_LIMIT = 3.0;//对比度限制
+    const double CLIP_LIMIT = 5.0;//对比度限制
 
     //计算瓦片尺寸和网格
     int tileW = max(8, w / TILE_GRID_X);
@@ -169,7 +169,7 @@ Image Enhancement::histogramEqualization(const Image& img) {
                     int p = img.getPixel(x, y);
                     int vValue;
 
-                    if (img.gettype() == 1) {
+                    if (img.getType() == 1) {
                         // 灰度图: 像素值即亮度
                         vValue = p;
                     }
@@ -213,7 +213,7 @@ Image Enhancement::histogramEqualization(const Image& img) {
 
             int p = img.getPixel(x, y);
 
-            if (img.gettype() == 1) {
+            if (img.getType() == 1) {
                 // ===== 灰度图: 直接插值映射值 =====
                 int vTL = tileMaps[tyT * gridX + txL][p];
                 int vTR = tileMaps[tyT * gridX + txR][p];
@@ -270,13 +270,97 @@ Image Enhancement::histogramEqualization(const Image& img) {
 // 进行指数变换(允许用户设定指数值) ，
 Image Enhancement::expTransform(const Image& img, double gamma) {
 	//todo
-	Image res;
-	return res;
+    const int w = img.getwidth();
+    const int h = img.getheight();
+    Image res(w, h, img.getbitcount(), img.getType());
+
+    if (img.getType() == Image::Binary) return img; // 二值图不处理
+
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            int p = img.getPixel(x, y);
+
+            if (img.getType() == Image::Gray) {
+                // 灰度图: 直接做幂律变换
+                double v_norm = p / 255.0;
+                double new_v_norm = pow(v_norm, gamma);
+                int newVal = (int)round(new_v_norm * 255.0);
+                newVal = max(0, min(255, newVal));
+                res.setPixel(x, y, newVal);
+            }
+            else {
+                // 彩色图: RGB -> HSV, 修改 V, HSV -> RGB
+                int r = Image::getRedComponent(p);
+                int g = Image::getGreenComponent(p);
+                int b = Image::getBlueComponent(p);
+
+                double hh, ss, vv;
+                rgbToHsv(r, g, b, hh, ss, vv);
+
+                // 对 V 分量做幂律变换
+                double v_norm = vv / 255.0;
+                double newV = pow(v_norm, gamma) * 255.0;
+                newV = max(0.0, min(255.0, newV));
+
+                int newR, newG, newB;
+                hsvToRgb(hh, ss, newV, newR, newG, newB);
+
+                unsigned int color24 =
+                    ((unsigned int)newR << 16) |
+                    ((unsigned int)newG << 8) |
+                    (unsigned int)newB;
+                res.setPixel(x, y, color24);
+            }
+        }
+    }
+
+    return res;
 }
 
 //对灰度图像或彩色图像（同上，一般只需对亮度分量做变换）进行对数变换，
 Image Enhancement::logTransform(const Image& img, double c) {
 	//todo
-	Image res;
-	return res;
+    const int w = img.getwidth();
+    const int h = img.getheight();
+    Image res(w, h, img.getbitcount(), img.getType());
+
+    if (img.getType() == Image::Binary) return img; // 二值图不处理
+
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            int p = img.getPixel(x, y);
+
+            if (img.getType() == Image::Gray) {
+                // 灰度图: 直接做对数变换
+                double newVal = c * log(1.0 + p)/log(256.0)*255;
+                int newV = (int)round(newVal);
+                newV = max(0, min(255, newV));
+                res.setPixel(x, y, newV);
+            }
+            else {
+                // 彩色图: RGB -> HSV, 修改 V, HSV -> RGB
+                int r = Image::getRedComponent(p);
+                int g = Image::getGreenComponent(p);
+                int b = Image::getBlueComponent(p);
+
+                double hh, ss, vv;
+                rgbToHsv(r, g, b, hh, ss, vv);
+
+                // 对 V 分量做对数变换（V 范围 [0, 255]）
+                double newV = c * log(1.0 + vv) / log(256.0) * 255;
+                newV = max(0.0, min(255.0, newV));
+
+                int newR, newG, newB;
+                hsvToRgb(hh, ss, newV, newR, newG, newB);
+
+                unsigned int color24 =
+                    ((unsigned int)newR << 16) |
+                    ((unsigned int)newG << 8) |
+                    (unsigned int)newB;
+                res.setPixel(x, y, color24);
+            }
+        }
+    }
+
+    return res;
 }

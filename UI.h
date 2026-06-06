@@ -5,6 +5,7 @@
 #include <shlobj.h>
 #include <string>
 #include <functional>
+#include <cwchar>    
 
 #include "Image.h"
 #include "BMPIO.h"
@@ -15,13 +16,11 @@
 using namespace std;
 
 
-
-
-//æ‰“å¼€ä¸€ä¸ªæ–‡ä»¶å¯¹è¯æ¡†ï¼Œè¿”å›é€‰æ‹©bmpæ–‡ä»¶çš„è·¯å¾„
+//´ò¿ªÒ»¸öÎÄ¼ş¶Ô»°¿ò£¬·µ»ØÑ¡ÔñbmpÎÄ¼şµÄÂ·¾¶
 string OpenFileDialog() {
     char filePath[MAX_PATH] = { 0 };
 
-    OPENFILENAMEA ofn;   // ä½¿ç”¨ ANSI ç‰ˆæœ¬ï¼Œé¿å…å­—ç¬¦é›†é—®é¢˜
+    OPENFILENAMEA ofn;   // Ê¹ÓÃ ANSI °æ±¾£¬±ÜÃâ×Ö·û¼¯ÎÊÌâ
     ZeroMemory(&ofn, sizeof(ofn));
 
     ofn.lStructSize = sizeof(ofn);
@@ -30,61 +29,60 @@ string OpenFileDialog() {
     ofn.lpstrFile = filePath;
     ofn.nMaxFile = MAX_PATH;
     ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
-    ofn.lpstrTitle = "é€‰æ‹© BMP æ–‡ä»¶";
+    ofn.lpstrTitle = "Ñ¡Ôñ BMP ÎÄ¼ş";
 
     if (GetOpenFileNameA(&ofn)) {
-        return string(filePath);  // è¿”å› string ç±»å‹è·¯å¾„
+        return string(filePath);  // ·µ»Ø string ÀàĞÍÂ·¾¶
     }
-    return "";  // ç”¨æˆ·ç‚¹å‡»äº†â€œå–æ¶ˆâ€
+    return "";  // ÓÃ»§µã»÷ÁË¡°È¡Ïû¡±
 }
-//æ‰“å¼€æ–‡ä»¶å¯¹è¯æ¡†ï¼Œä½†æ˜¯è¿™ä¸ªç”¨äºé€‰æ‹©æ–‡ä»¶å¤¹
+//´ò¿ªÎÄ¼ş¶Ô»°¿ò£¬µ«ÊÇÕâ¸öÓÃÓÚÑ¡ÔñÎÄ¼ş¼Ğ
 
 string OpenFolderDialog() {
     char folderPath[MAX_PATH] = { 0 };
     BROWSEINFOA  bi;
     ZeroMemory(&bi, sizeof(bi));
-    bi.lpszTitle = "é€‰æ‹©æ–‡ä»¶å¤¹";
+    bi.lpszTitle = "Ñ¡ÔñÎÄ¼ş¼Ğ";
     bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
     LPITEMIDLIST pidl = SHBrowseForFolderA(&bi);
     if (pidl != nullptr) {
         SHGetPathFromIDListA(pidl, folderPath);
-        CoTaskMemFree(pidl);  // é‡Šæ”¾å†…å­˜
-        return string(folderPath);  // è¿”å› string ç±»å‹è·¯å¾„
+        CoTaskMemFree(pidl);  // ÊÍ·ÅÄÚ´æ
+        return string(folderPath);  // ·µ»Ø string ÀàĞÍÂ·¾¶
     }
-    return "";  // ç”¨æˆ·ç‚¹å‡»äº†â€œå–æ¶ˆâ€
+    return "";  // ÓÃ»§µã»÷ÁË¡°È¡Ïû¡±
 }
 
 
-// å®šä¹‰Buttonç±»ï¼Œè¡¨ç¤ºä¸€ä¸ªæŒ‰é’®
+// ¶¨ÒåButtonÀà£¬±íÊ¾Ò»¸ö°´Å¥
 class Button
 {
 protected:
-    int x; // æŒ‰é’®å·¦ä¸Šè§’xåæ ‡
-    int y; // æŒ‰é’®å·¦ä¸Šè§’yåæ ‡
-    int width; // æŒ‰é’®å®½åº¦
-    int height; // æŒ‰é’®é«˜åº¦
-    float scale; // ç¼©æ”¾æ¯”ä¾‹ï¼Œç”¨äºå®ç°é¼ æ ‡æ‚¬åœæ•ˆæœ
-    bool isMouseOver; // è¡¨ç¤ºé¼ æ ‡æ˜¯å¦åœ¨æŒ‰é’®ä¸Šæ–¹
-    wstring text; // æŒ‰é’®æ–‡æœ¬
-    function<void* (void*)> onClick; // ç‚¹å‡»æŒ‰é’®è§¦å‘çš„å‡½æ•°
-
+    int x; // °´Å¥×óÉÏ½Çx×ø±ê
+    int y; // °´Å¥×óÉÏ½Çy×ø±ê
+    int width; // °´Å¥¿í¶È
+    int height; // °´Å¥¸ß¶È
+    float scale; // Ëõ·Å±ÈÀı£¬ÓÃÓÚÊµÏÖÊó±êĞüÍ£Ğ§¹û
+    bool isMouseOver; // ±íÊ¾Êó±êÊÇ·ñÔÚ°´Å¥ÉÏ·½
+    wstring text; // °´Å¥ÎÄ±¾
+    function<void*(void*,int)> onClick; // µã»÷°´Å¥´¥·¢µÄº¯Êı
+    
 public:
 
-    Button(int _x, int _y, int _width, int _height, const wstring& _text, const function<void* (void*)>& _onClick = [](void* img) {return nullptr; })
-        : x(_x), y(_y), width(_width), height(_height), text(_text), scale(1.0f), isMouseOver(false), onClick(_onClick)
-    {
-    }
+    Button(int _x, int _y, int _width, int _height, const wstring& _text, const function<void*(void*,int)>& _onClick=[](void* img,int index){return nullptr; })
+		: x(_x), y(_y), width(_width), height(_height), text(_text), scale(1.0f), isMouseOver(false), onClick(_onClick)
+    {}
 
-    // æ£€æŸ¥é¼ æ ‡æ˜¯å¦åœ¨æŒ‰é’®ä¸Šæ–¹
+    // ¼ì²éÊó±êÊÇ·ñÔÚ°´Å¥ÉÏ·½
     bool checkMouseOver(int mouseX, int mouseY)
     {
         isMouseOver = (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height);
 
         if (isMouseOver) {
-            scale = 0.9f; // é¼ æ ‡æ‚¬åœæ—¶ç¼©æ”¾æŒ‰é’®
+            scale = 0.9f; // Êó±êĞüÍ£Ê±Ëõ·Å°´Å¥
         }
         else {
-            scale = 1.0f; // æ¢å¤æŒ‰é’®åŸå§‹å¤§å°
+            scale = 1.0f; // »Ö¸´°´Å¥Ô­Ê¼´óĞ¡
         }
         return isMouseOver;
 
@@ -105,17 +103,17 @@ public:
         return width;
     }
 
-    void setOnclick(function<void* (void*)> _onClick) {
+    void setOnclick(function<void* (void*,int)> _onClick) {
 
         onClick = _onClick;
     }
 
-    // æ£€æŸ¥é¼ æ ‡ç‚¹å‡»æ˜¯å¦åœ¨æŒ‰é’®å†…ï¼Œå¹¶æ‰§è¡Œå‡½æ•°
-    void* checkClick(int mouseX, int mouseY, void* img = nullptr)
+    // ¼ì²éÊó±êµã»÷ÊÇ·ñÔÚ°´Å¥ÄÚ£¬²¢Ö´ĞĞº¯Êı
+    void* checkClick(int mouseX, int mouseY,void*img=nullptr,int index=0)
     {
         if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height)
         {
-            void* res = onClick(img); // æ‰§è¡ŒæŒ‰é’®ç‚¹å‡»æ—¶çš„å‡½æ•°
+            void* res=onClick(img,index); // Ö´ĞĞ°´Å¥µã»÷Ê±µÄº¯Êı
             //isMouseOver = false;
             //scale = 1.0f;
             return res;
@@ -123,54 +121,54 @@ public:
         return nullptr;
     }
 
-    // ç»˜åˆ¶æŒ‰é’®
+    // »æÖÆ°´Å¥
     void draw()
     {
-        int scaledWidth = width * scale; // ç¼©æ”¾åçš„æŒ‰é’®å®½åº¦
-        int scaledHeight = height * scale; // ç¼©æ”¾åçš„æŒ‰é’®é«˜åº¦
-        int scaledX = x + (width - scaledWidth) / 2; // ç¼©æ”¾åçš„æŒ‰é’®xåæ ‡
-        int scaledY = y + (height - scaledHeight) / 2; // ç¼©æ”¾åçš„æŒ‰é’®yåæ ‡
+        int scaledWidth = width * scale; // Ëõ·ÅºóµÄ°´Å¥¿í¶È
+        int scaledHeight = height * scale; // Ëõ·ÅºóµÄ°´Å¥¸ß¶È
+        int scaledX = x + (width - scaledWidth) / 2; // Ëõ·ÅºóµÄ°´Å¥x×ø±ê
+        int scaledY = y + (height - scaledHeight) / 2; // Ëõ·ÅºóµÄ°´Å¥y×ø±ê
 
         if (isMouseOver)
         {
-            setlinecolor(RGB(0, 120, 215)); // é¼ æ ‡æ‚¬åœæ—¶æŒ‰é’®è¾¹æ¡†é¢œè‰²
-            setfillcolor(RGB(229, 241, 251)); // é¼ æ ‡æ‚¬åœæ—¶æŒ‰é’®å¡«å……é¢œè‰²
+            setlinecolor(RGB(0, 120, 215)); // Êó±êĞüÍ£Ê±°´Å¥±ß¿òÑÕÉ«
+            setfillcolor(RGB(229, 241, 251)); // Êó±êĞüÍ£Ê±°´Å¥Ìî³äÑÕÉ«
         }
         else
         {
-            setlinecolor(RGB(173, 173, 173)); // æŒ‰é’®è¾¹æ¡†é¢œè‰²
-            setfillcolor(RGB(225, 225, 225)); // æŒ‰é’®å¡«å……é¢œè‰²
+            setlinecolor(RGB(173, 173, 173)); // °´Å¥±ß¿òÑÕÉ«
+            setfillcolor(RGB(225, 225, 225)); // °´Å¥Ìî³äÑÕÉ«
         }
 
-        fillrectangle(scaledX, scaledY, scaledX + scaledWidth, scaledY + scaledHeight); // ç»˜åˆ¶æŒ‰é’®
-        settextcolor(BLACK); // è®¾ç½®æ–‡æœ¬é¢œè‰²ä¸ºé»‘è‰²
-        setbkmode(TRANSPARENT); // è®¾ç½®æ–‡æœ¬èƒŒæ™¯é€æ˜
-        settextstyle(20 * scale, 0, _T("å¾®è½¯é›…é»‘")); // è®¾ç½®æ–‡æœ¬å¤§å°å’Œå­—ä½“
-        //å±…ä¸­æ˜¾ç¤ºæŒ‰é’®æ–‡æœ¬
-        int textX = scaledX + (scaledWidth - textwidth(text.c_str())) / 2; // è®¡ç®—æ–‡æœ¬åœ¨æŒ‰é’®ä¸­å¤®çš„xåæ ‡
-        int textY = scaledY + (scaledHeight - textheight(_T("å¾®è½¯é›…é»‘"))) / 2; // è®¡ç®—æ–‡æœ¬åœ¨æŒ‰é’®ä¸­å¤®çš„yåæ ‡
-        outtextxy(textX, textY, text.c_str()); // åœ¨æŒ‰é’®ä¸Šç»˜åˆ¶æ–‡æœ¬
+        fillrectangle(scaledX, scaledY, scaledX + scaledWidth, scaledY + scaledHeight); // »æÖÆ°´Å¥
+        settextcolor(BLACK); // ÉèÖÃÎÄ±¾ÑÕÉ«ÎªºÚÉ«
+        setbkmode(TRANSPARENT); // ÉèÖÃÎÄ±¾±³¾°Í¸Ã÷
+        settextstyle(20 * scale, 0, _T("Î¢ÈíÑÅºÚ")); // ÉèÖÃÎÄ±¾´óĞ¡ºÍ×ÖÌå
+        //¾ÓÖĞÏÔÊ¾°´Å¥ÎÄ±¾
+        int textX = scaledX + (scaledWidth - textwidth(text.c_str())) / 2; // ¼ÆËãÎÄ±¾ÔÚ°´Å¥ÖĞÑëµÄx×ø±ê
+        int textY = scaledY + (scaledHeight - textheight(_T("Î¢ÈíÑÅºÚ"))) / 2; // ¼ÆËãÎÄ±¾ÔÚ°´Å¥ÖĞÑëµÄy×ø±ê
+        outtextxy(textX, textY, text.c_str()); // ÔÚ°´Å¥ÉÏ»æÖÆÎÄ±¾
     }
 };
 
 
-//å®šä¹‰ä¸€ä¸ªTextureButtonç±»
+//¶¨ÒåÒ»¸öTextureButtonÀà
 class TextureButton : public Button {
 private:
-    IMAGE* texture; // æŒ‰é’®çº¹ç†ï¼Œå¯ä»¥æ˜¯ä¸€ä¸ªå›¾ç‰‡
+    IMAGE* texture; // °´Å¥ÎÆÀí£¬¿ÉÒÔÊÇÒ»¸öÍ¼Æ¬
 public:
-    TextureButton(int _x, int _y, int _width, int _height, IMAGE* texture, const wstring& _text = L"", const function<void* (void*)>& _onClick = [](void* img) {return nullptr; })
-        : Button(_x, _y, _width, _height, _text, _onClick), texture(texture)
-    {
-    }
+    TextureButton(int _x, int _y, int _width, int _height, IMAGE* texture, const wstring& _text=L"", const function<void* (void*,int)>& _onClick = [](void* img,int index) {return nullptr; })
+		: Button(_x, _y, _width, _height, _text, _onClick), texture(texture)
+	{
+	}
+    
 
-
-    // æ£€æŸ¥é¼ æ ‡ç‚¹å‡»æ˜¯å¦åœ¨æŒ‰é’®å†…ï¼Œå¹¶æ‰§è¡Œå‡½æ•°
-    bool checkClick(int mouseX, int mouseY, void* img = nullptr)
+    // ¼ì²éÊó±êµã»÷ÊÇ·ñÔÚ°´Å¥ÄÚ£¬²¢Ö´ĞĞº¯Êı
+    bool checkClick(int mouseX, int mouseY, void* img = nullptr,int index=0)
     {
         if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height)
         {
-            onClick(img); // æ‰§è¡ŒæŒ‰é’®ç‚¹å‡»æ—¶çš„å‡½æ•°
+            onClick(img,index); // Ö´ĞĞ°´Å¥µã»÷Ê±µÄº¯Êı
             //isMouseOver = false;
             //scale = 1.0f;
             return true;
@@ -178,34 +176,34 @@ public:
         return false;
     }
 
-    // ç»˜åˆ¶æŒ‰é’®
+    // »æÖÆ°´Å¥
     void draw()
     {
-        int scaledWidth = width * scale; // ç¼©æ”¾åçš„æŒ‰é’®å®½åº¦
-        int scaledHeight = height * scale; // ç¼©æ”¾åçš„æŒ‰é’®é«˜åº¦
-        int scaledX = x + (width - scaledWidth) / 2; // ç¼©æ”¾åçš„æŒ‰é’®xåæ ‡
-        int scaledY = y + (height - scaledHeight) / 2; // ç¼©æ”¾åçš„æŒ‰é’®yåæ ‡
+        int scaledWidth = width * scale; // Ëõ·ÅºóµÄ°´Å¥¿í¶È
+        int scaledHeight = height * scale; // Ëõ·ÅºóµÄ°´Å¥¸ß¶È
+        int scaledX = x + (width - scaledWidth) / 2; // Ëõ·ÅºóµÄ°´Å¥x×ø±ê
+        int scaledY = y + (height - scaledHeight) / 2; // Ëõ·ÅºóµÄ°´Å¥y×ø±ê
 
         if (isMouseOver)
         {
-            setlinecolor(RGB(0, 120, 215)); // é¼ æ ‡æ‚¬åœæ—¶æŒ‰é’®è¾¹æ¡†é¢œè‰²
-            setfillcolor(RGB(229, 241, 251)); // é¼ æ ‡æ‚¬åœæ—¶æŒ‰é’®å¡«å……é¢œè‰²
+            setlinecolor(RGB(0, 120, 215)); // Êó±êĞüÍ£Ê±°´Å¥±ß¿òÑÕÉ«
+            setfillcolor(RGB(229, 241, 251)); // Êó±êĞüÍ£Ê±°´Å¥Ìî³äÑÕÉ«
         }
         else
         {
-            setlinecolor(RGB(173, 173, 173)); // æŒ‰é’®è¾¹æ¡†é¢œè‰²
-            setfillcolor(RGB(225, 225, 225)); // æŒ‰é’®å¡«å……é¢œè‰²
+            setlinecolor(RGB(173, 173, 173)); // °´Å¥±ß¿òÑÕÉ«
+            setfillcolor(RGB(225, 225, 225)); // °´Å¥Ìî³äÑÕÉ«
         }
 
-        fillrectangle(scaledX, scaledY, scaledX + scaledWidth, scaledY + scaledHeight); // ç»˜åˆ¶æŒ‰é’®
+        fillrectangle(scaledX, scaledY, scaledX + scaledWidth, scaledY + scaledHeight); // »æÖÆ°´Å¥
 
-        //æ–¹æ³•1ï¼šä½¿ç”¨åŒä¸‰æ¬¡æ’å€¼ç¼©æ”¾å›¾åƒï¼Œè´¨é‡å·®
-        //IMAGE* res = Image::resizeImageBicubic(texture, scaledWidth - 10, scaledHeight - 10); // ä½¿ç”¨åŒä¸‰æ¬¡æ’å€¼ç¼©æ”¾å›¾åƒ
-        //putimage(scaledX + 5, scaledY + 5, res); // åœ¨æŒ‡å®šä½ç½®ç»˜åˆ¶å›¾åƒ
+        //·½·¨1£ºÊ¹ÓÃË«Èı´Î²åÖµËõ·ÅÍ¼Ïñ£¬ÖÊÁ¿²î
+        //IMAGE* res = Image::resizeImageBicubic(texture, scaledWidth - 10, scaledHeight - 10); // Ê¹ÓÃË«Èı´Î²åÖµËõ·ÅÍ¼Ïñ
+        //putimage(scaledX + 5, scaledY + 5, res); // ÔÚÖ¸¶¨Î»ÖÃ»æÖÆÍ¼Ïñ
 
-        //æ–¹æ³•2ï¼šä½¿ç”¨ç®€å•ç¼©æ”¾æ–¹æ³•ç¼©æ”¾å›¾åƒï¼Œè´¨é‡å¥½
-        IMAGE res2 = Image::resize(texture, scaledWidth - 10, scaledHeight - 10); // ä½¿ç”¨ç®€å•ç¼©æ”¾æ–¹æ³•ç¼©æ”¾å›¾åƒ 
-        putimage(scaledX + 5, scaledY + 5, &res2); // åœ¨æŒ‡å®šä½ç½®ç»˜åˆ¶å›¾åƒ
+        //·½·¨2£ºÊ¹ÓÃ¼òµ¥Ëõ·Å·½·¨Ëõ·ÅÍ¼Ïñ£¬ÖÊÁ¿ºÃ
+        IMAGE res2 = Image::resize(texture, scaledWidth - 10, scaledHeight - 10); // Ê¹ÓÃ¼òµ¥Ëõ·Å·½·¨Ëõ·ÅÍ¼Ïñ 
+        putimage(scaledX + 5, scaledY + 5, &res2); // ÔÚÖ¸¶¨Î»ÖÃ»æÖÆÍ¼Ïñ
 
 
 
@@ -213,22 +211,22 @@ public:
 };
 
 
-//å®šä¹‰ä¸€ä¸ªtabç±»(é€‰é¡¹å¡)ï¼Œè¡¨ç¤ºä¸€ä¸ªé€‰é¡¹åˆ—è¡¨ï¼Œå¯ä»¥ç”¨äºæ˜¾ç¤ºå¤šä¸ªé€‰é¡¹å¹¶è®©ç”¨æˆ·é€‰æ‹©å…¶ä¸­ä¸€ä¸ª
+//¶¨ÒåÒ»¸ötabÀà(Ñ¡Ïî¿¨)£¬±íÊ¾Ò»¸öÑ¡ÏîÁĞ±í£¬¿ÉÒÔÓÃÓÚÏÔÊ¾¶à¸öÑ¡Ïî²¢ÈÃÓÃ»§Ñ¡ÔñÆäÖĞÒ»¸ö
 class Tab {
 private:
-    int count;// é€‰é¡¹æ•°é‡
-    bool isExpanded = false; // æ˜¯å¦å±•å¼€é€‰é¡¹åˆ—è¡¨
-    vector<wstring> options; // å­˜å‚¨é€‰é¡¹æ–‡æœ¬å†…å®¹çš„å‘é‡
-    int selectedOption = 0; // å½“å‰é€‰ä¸­çš„é€‰é¡¹æ–‡æœ¬
-    //é€‰é¡¹åˆ—è¡¨å…³é—­æ—¶æ˜¾ç¤ºé€‰ä¸­çš„é€‰é¡¹æ–‡æœ¬ï¼Œé€‰é¡¹åˆ—è¡¨å±•å¼€æ—¶æ˜¾ç¤ºæ‰€æœ‰é€‰é¡¹æ–‡æœ¬
+    int count;// Ñ¡ÏîÊıÁ¿
+    bool isExpanded = false; // ÊÇ·ñÕ¹¿ªÑ¡ÏîÁĞ±í
+    vector<wstring> options; // ´æ´¢Ñ¡ÏîÎÄ±¾ÄÚÈİµÄÏòÁ¿
+    int selectedOption = 0; // µ±Ç°Ñ¡ÖĞµÄÑ¡ÏîÎÄ±¾
+    //Ñ¡ÏîÁĞ±í¹Ø±ÕÊ±ÏÔÊ¾Ñ¡ÖĞµÄÑ¡ÏîÎÄ±¾£¬Ñ¡ÏîÁĞ±íÕ¹¿ªÊ±ÏÔÊ¾ËùÓĞÑ¡ÏîÎÄ±¾
 
-    int x; // å·¦ä¸Šè§’xåæ ‡
-    int y; // å·¦ä¸Šè§’yåæ ‡
-    int width; // æ¯ä¸€ä¸ªé€‰é¡¹çš„å®½åº¦
-    int height; // æ¯ä¸€ä¸ªé€‰é¡¹çš„é«˜åº¦
+    int x; // ×óÉÏ½Çx×ø±ê
+    int y; // ×óÉÏ½Çy×ø±ê
+    int width; // Ã¿Ò»¸öÑ¡ÏîµÄ¿í¶È
+    int height; // Ã¿Ò»¸öÑ¡ÏîµÄ¸ß¶È
 
-    bool isMouseOver = false; // è¡¨ç¤ºé¼ æ ‡æ˜¯å¦åœ¨æŒ‰é’®ä¸Šæ–¹
-    int hoveredOptionIndex = -1; // å½“å‰é¼ æ ‡æ‚¬åœçš„é€‰é¡¹ç´¢å¼•
+    bool isMouseOver = false; // ±íÊ¾Êó±êÊÇ·ñÔÚ°´Å¥ÉÏ·½
+    int hoveredOptionIndex = -1; // µ±Ç°Êó±êĞüÍ£µÄÑ¡ÏîË÷Òı
 
 public:
 
@@ -253,45 +251,45 @@ public:
 
     bool checkMouseOver(int mouseX, int mouseY)
     {
-        //å¦‚æœé€‰é¡¹å¡æ²¡æœ‰å±•å¼€ï¼Œæ£€æŸ¥é¼ æ ‡æ˜¯å¦åœ¨é€‰é¡¹å¡ä¸Šæ–¹
+        //Èç¹ûÑ¡Ïî¿¨Ã»ÓĞÕ¹¿ª£¬¼ì²éÊó±êÊÇ·ñÔÚÑ¡Ïî¿¨ÉÏ·½
         if (!isExpanded) {
             isMouseOver = (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height);
         }
-        //å¦‚æœé€‰é¡¹å¡å±•å¼€ï¼Œæ£€æŸ¥é¼ æ ‡åœ¨å“ªä¸€ä¸ªé€‰é¡¹ä¸Šæ–¹
+        //Èç¹ûÑ¡Ïî¿¨Õ¹¿ª£¬¼ì²éÊó±êÔÚÄÄÒ»¸öÑ¡ÏîÉÏ·½
         else {
             isMouseOver = (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height * (count + 1));
             if (isMouseOver) {
-                mouseY -= y; //å°†é¼ æ ‡yåæ ‡è½¬æ¢ä¸ºç›¸å¯¹äºé€‰é¡¹åˆ—è¡¨çš„åæ ‡
-                int optionHeight = height; //æ¯ä¸ªé€‰é¡¹çš„é«˜åº¦
-                hoveredOptionIndex = mouseY / optionHeight; //è®¡ç®—é¼ æ ‡æ‚¬åœçš„é€‰é¡¹ç´¢å¼•
+                mouseY -= y; //½«Êó±êy×ø±ê×ª»»ÎªÏà¶ÔÓÚÑ¡ÏîÁĞ±íµÄ×ø±ê
+                int optionHeight = height; //Ã¿¸öÑ¡ÏîµÄ¸ß¶È
+                hoveredOptionIndex = mouseY / optionHeight; //¼ÆËãÊó±êĞüÍ£µÄÑ¡ÏîË÷Òı
             }
             else {
-                hoveredOptionIndex = -1; //æ²¡æœ‰æ‚¬åœåœ¨ä»»ä½•é€‰é¡¹ä¸Š
+                hoveredOptionIndex = -1; //Ã»ÓĞĞüÍ£ÔÚÈÎºÎÑ¡ÏîÉÏ
             }
         }
         return isMouseOver;
     }
 
-    //è¿”å›å½“å‰é€‰ä¸­çš„é€‰é¡¹ç´¢å¼•
+    //·µ»Øµ±Ç°Ñ¡ÖĞµÄÑ¡ÏîË÷Òı
     int returnSelectedOption() {
         return selectedOption;
     }
 
-    // æ£€æŸ¥é¼ æ ‡ç‚¹å‡»æ˜¯å¦åœ¨æ ‡ç­¾å†…
+    // ¼ì²éÊó±êµã»÷ÊÇ·ñÔÚ±êÇ©ÄÚ
     bool checkClick(int mouseX, int mouseY)
     {
         if (isMouseOver) {
             if (!isExpanded) {
-                isExpanded = true; //ç‚¹å‡»é€‰é¡¹å¡æ—¶å±•å¼€é€‰é¡¹åˆ—è¡¨
+                isExpanded = true; //µã»÷Ñ¡Ïî¿¨Ê±Õ¹¿ªÑ¡ÏîÁĞ±í
             }
             else {
-                //å¦‚æœç‚¹å‡»çš„æ˜¯é€‰é¡¹å¡ï¼Œåˆ™å…³é—­é€‰é¡¹åˆ—è¡¨ä½†ä¸æ”¹å˜é€‰ä¸­çš„é€‰é¡¹
+                //Èç¹ûµã»÷µÄÊÇÑ¡Ïî¿¨£¬Ôò¹Ø±ÕÑ¡ÏîÁĞ±íµ«²»¸Ä±äÑ¡ÖĞµÄÑ¡Ïî
                 if (hoveredOptionIndex == 0) {
                     isExpanded = false;
                 }
                 else if (hoveredOptionIndex > 0 && hoveredOptionIndex <= options.size()) {
-                    selectedOption = hoveredOptionIndex - 1; //æ ¹æ®é¼ æ ‡æ‚¬åœçš„é€‰é¡¹ç´¢å¼•è®¾ç½®é€‰ä¸­çš„é€‰é¡¹
-                    isExpanded = false; //ç‚¹å‡»é€‰é¡¹æ—¶å…³é—­é€‰é¡¹åˆ—è¡¨
+                    selectedOption = hoveredOptionIndex - 1; //¸ù¾İÊó±êĞüÍ£µÄÑ¡ÏîË÷ÒıÉèÖÃÑ¡ÖĞµÄÑ¡Ïî
+                    isExpanded = false; //µã»÷Ñ¡ÏîÊ±¹Ø±ÕÑ¡ÏîÁĞ±í
                 }
 
             }
@@ -302,61 +300,61 @@ public:
 
 
 
-    // æ˜¾ç¤ºé€‰é¡¹å¹¶ç­‰å¾…ç”¨æˆ·é€‰æ‹©
+    // ÏÔÊ¾Ñ¡Ïî²¢µÈ´ıÓÃ»§Ñ¡Ôñ
     void draw()
     {
-        // åœ¨è¿™é‡Œå®ç°æ˜¾ç¤ºé€‰é¡¹çš„é€»è¾‘ï¼Œä¾‹å¦‚ç»˜åˆ¶é€‰é¡¹åˆ—è¡¨å¹¶å¤„ç†ç”¨æˆ·è¾“å…¥
-        // å¯ä»¥ä½¿ç”¨æŒ‰é’®æˆ–å…¶ä»–äº¤äº’æ–¹å¼æ¥è®©ç”¨æˆ·é€‰æ‹©
+        // ÔÚÕâÀïÊµÏÖÏÔÊ¾Ñ¡ÏîµÄÂß¼­£¬ÀıÈç»æÖÆÑ¡ÏîÁĞ±í²¢´¦ÀíÓÃ»§ÊäÈë
+        // ¿ÉÒÔÊ¹ÓÃ°´Å¥»òÆäËû½»»¥·½Ê½À´ÈÃÓÃ»§Ñ¡Ôñ
 
-        //å¦‚æœé€‰é¡¹åˆ—è¡¨å±•å¼€ï¼Œæ˜¾ç¤ºæ‰€æœ‰é€‰é¡¹æ–‡æœ¬ï¼›å¦‚æœé€‰é¡¹åˆ—è¡¨å…³é—­ï¼Œæ˜¾ç¤ºé€‰ä¸­çš„é€‰é¡¹æ–‡æœ¬
+        //Èç¹ûÑ¡ÏîÁĞ±íÕ¹¿ª£¬ÏÔÊ¾ËùÓĞÑ¡ÏîÎÄ±¾£»Èç¹ûÑ¡ÏîÁĞ±í¹Ø±Õ£¬ÏÔÊ¾Ñ¡ÖĞµÄÑ¡ÏîÎÄ±¾
 
-        //å¦‚æœé¼ æ ‡æ‚¬åœåœ¨å½“å‰é€‰æ‹©çš„é€‰é¡¹å¡ä¸Šæ–¹ï¼Œæ”¹å˜é€‰é¡¹å¡çš„é¢œè‰²ä»¥æä¾›è§†è§‰åé¦ˆ
+        //Èç¹ûÊó±êĞüÍ£ÔÚµ±Ç°Ñ¡ÔñµÄÑ¡Ïî¿¨ÉÏ·½£¬¸Ä±äÑ¡Ïî¿¨µÄÑÕÉ«ÒÔÌá¹©ÊÓ¾õ·´À¡
         if (isMouseOver && hoveredOptionIndex == 0)
         {
-            setlinecolor(RGB(0, 120, 215)); // é¼ æ ‡æ‚¬åœæ—¶è¾¹æ¡†é¢œè‰²
-            setfillcolor(RGB(229, 241, 251)); // é¼ æ ‡æ‚¬åœæ—¶å¡«å……é¢œè‰²
+            setlinecolor(RGB(0, 120, 215)); // Êó±êĞüÍ£Ê±±ß¿òÑÕÉ«
+            setfillcolor(RGB(229, 241, 251)); // Êó±êĞüÍ£Ê±Ìî³äÑÕÉ«
         }
         else
         {
-            setlinecolor(RGB(173, 173, 173)); // æŒ‰é’®è¾¹æ¡†é¢œè‰²
-            setfillcolor(RGB(225, 225, 225)); // æŒ‰é’®å¡«å……é¢œè‰²
+            setlinecolor(RGB(173, 173, 173)); // °´Å¥±ß¿òÑÕÉ«
+            setfillcolor(RGB(225, 225, 225)); // °´Å¥Ìî³äÑÕÉ«
         }
 
-        fillrectangle(x, y, x + width, y + height); // ç»˜åˆ¶é€‰æ‹©çš„é€‰é¡¹
+        fillrectangle(x, y, x + width, y + height); // »æÖÆÑ¡ÔñµÄÑ¡Ïî
 
-        settextcolor(BLACK); // è®¾ç½®æ–‡æœ¬é¢œè‰²ä¸ºé»‘è‰²
-        setbkmode(TRANSPARENT); // è®¾ç½®æ–‡æœ¬èƒŒæ™¯é€æ˜
-        settextstyle(20, 0, _T("å¾®è½¯é›…é»‘")); // è®¾ç½®æ–‡æœ¬å¤§å°å’Œå­—ä½“
-        //å±…ä¸­æ˜¾ç¤ºæŒ‰é’®æ–‡æœ¬
-        int textX = x + (width - textwidth(options[selectedOption].c_str())) / 2; // è®¡ç®—æ–‡æœ¬åœ¨æŒ‰é’®ä¸­å¤®çš„xåæ ‡
-        int textY = y + (height - textheight(_T("å¾®è½¯é›…é»‘"))) / 2; // è®¡ç®—æ–‡æœ¬åœ¨æŒ‰é’®ä¸­å¤®çš„yåæ ‡
-        outtextxy(textX, textY, options[selectedOption].c_str()); // åœ¨æŒ‰é’®ä¸Šç»˜åˆ¶æ–‡æœ¬
+        settextcolor(BLACK); // ÉèÖÃÎÄ±¾ÑÕÉ«ÎªºÚÉ«
+        setbkmode(TRANSPARENT); // ÉèÖÃÎÄ±¾±³¾°Í¸Ã÷
+        settextstyle(20, 0, _T("Î¢ÈíÑÅºÚ")); // ÉèÖÃÎÄ±¾´óĞ¡ºÍ×ÖÌå
+        //¾ÓÖĞÏÔÊ¾°´Å¥ÎÄ±¾
+        int textX = x + (width - textwidth(options[selectedOption].c_str())) / 2; // ¼ÆËãÎÄ±¾ÔÚ°´Å¥ÖĞÑëµÄx×ø±ê
+        int textY = y + (height - textheight(_T("Î¢ÈíÑÅºÚ"))) / 2; // ¼ÆËãÎÄ±¾ÔÚ°´Å¥ÖĞÑëµÄy×ø±ê
+        outtextxy(textX, textY, options[selectedOption].c_str()); // ÔÚ°´Å¥ÉÏ»æÖÆÎÄ±¾
 
-        //å¦‚æœé€‰é¡¹åˆ—è¡¨å±•å¼€ï¼Œæ˜¾ç¤ºæ‰€æœ‰é€‰é¡¹æ–‡æœ¬
+        //Èç¹ûÑ¡ÏîÁĞ±íÕ¹¿ª£¬ÏÔÊ¾ËùÓĞÑ¡ÏîÎÄ±¾
         if (isExpanded) {
             for (int i = 0; i < options.size(); i++) {
                 if (isMouseOver && hoveredOptionIndex - 1 == i)
                 {
-                    setlinecolor(RGB(0, 120, 215)); // é¼ æ ‡æ‚¬åœæ—¶è¾¹æ¡†é¢œè‰²
-                    setfillcolor(RGB(229, 241, 251)); // é¼ æ ‡æ‚¬åœæ—¶å¡«å……é¢œè‰²
+                    setlinecolor(RGB(0, 120, 215)); // Êó±êĞüÍ£Ê±±ß¿òÑÕÉ«
+                    setfillcolor(RGB(229, 241, 251)); // Êó±êĞüÍ£Ê±Ìî³äÑÕÉ«
                 }
                 else
                 {
-                    setlinecolor(RGB(173, 173, 173)); // æŒ‰é’®è¾¹æ¡†é¢œè‰²
-                    setfillcolor(RGB(225, 225, 225)); // æŒ‰é’®å¡«å……é¢œè‰²
+                    setlinecolor(RGB(173, 173, 173)); // °´Å¥±ß¿òÑÕÉ«
+                    setfillcolor(RGB(225, 225, 225)); // °´Å¥Ìî³äÑÕÉ«
                 }
-                int optionX = x; //æ¯ä¸ªé€‰é¡¹çš„xåæ ‡
-                int optionY = y + height * (i + 1); //æ¯ä¸ªé€‰é¡¹çš„yåæ ‡
+                int optionX = x; //Ã¿¸öÑ¡ÏîµÄx×ø±ê
+                int optionY = y + height * (i + 1); //Ã¿¸öÑ¡ÏîµÄy×ø±ê
 
-                fillrectangle(optionX, optionY, optionX + width, optionY + height); // ç»˜åˆ¶é€‰é¡¹
+                fillrectangle(optionX, optionY, optionX + width, optionY + height); // »æÖÆÑ¡Ïî
 
-                settextcolor(BLACK); // è®¾ç½®æ–‡æœ¬é¢œè‰²ä¸ºé»‘è‰²
-                setbkmode(TRANSPARENT); // è®¾ç½®æ–‡æœ¬èƒŒæ™¯é€æ˜
-                settextstyle(20, 0, _T("å¾®è½¯é›…é»‘")); // è®¾ç½®æ–‡æœ¬å¤§å°å’Œå­—ä½“
-                //å±…ä¸­æ˜¾ç¤ºæŒ‰é’®æ–‡æœ¬
-                int textX = optionX + (width - textwidth(options[i].c_str())) / 2; // è®¡ç®—æ–‡æœ¬åœ¨æŒ‰é’®ä¸­å¤®çš„xåæ ‡
-                int textY = optionY + (height - textheight(_T("å¾®è½¯é›…é»‘"))) / 2; // è®¡ç®—æ–‡æœ¬åœ¨æŒ‰é’®ä¸­å¤®çš„yåæ ‡
-                outtextxy(textX, textY, options[i].c_str()); // åœ¨æŒ‰é’®ä¸Šç»˜åˆ¶æ–‡æœ¬
+                settextcolor(BLACK); // ÉèÖÃÎÄ±¾ÑÕÉ«ÎªºÚÉ«
+                setbkmode(TRANSPARENT); // ÉèÖÃÎÄ±¾±³¾°Í¸Ã÷
+                settextstyle(20, 0, _T("Î¢ÈíÑÅºÚ")); // ÉèÖÃÎÄ±¾´óĞ¡ºÍ×ÖÌå
+                //¾ÓÖĞÏÔÊ¾°´Å¥ÎÄ±¾
+                int textX = optionX + (width - textwidth(options[i].c_str())) / 2; // ¼ÆËãÎÄ±¾ÔÚ°´Å¥ÖĞÑëµÄx×ø±ê
+                int textY = optionY + (height - textheight(_T("Î¢ÈíÑÅºÚ"))) / 2; // ¼ÆËãÎÄ±¾ÔÚ°´Å¥ÖĞÑëµÄy×ø±ê
+                outtextxy(textX, textY, options[i].c_str()); // ÔÚ°´Å¥ÉÏ»æÖÆÎÄ±¾
             }
 
 
@@ -376,12 +374,11 @@ public:
 
 
 
-//æŒ‰é’®å¯¹åº”çš„ä¸€å †å‡½æ•°
+//°´Å¥¶ÔÓ¦µÄÒ»¶Ñº¯Êı
 class Functions {
 public:
     Functions() {
 
-        //onClick.push_back(bind(&Functions::func1, this));
         onClick.push_back(func1);
         onClick.push_back(func2);
         onClick.push_back(func3);
@@ -395,21 +392,25 @@ public:
         onClick.push_back(func11);
         onClick.push_back(func12);
         onClick.push_back(func13);
+        onClick.push_back(func14);
+        onClick.push_back(func15);
 
-    }
-    vector<wstring>name = { L"bmpæ–‡ä»¶è¯»å…¥",L"bmpæ–‡ä»¶è¾“å‡º",L"è£å‡", L"åˆ‡å‰²", L"gray to binary",
-        L"color to gray", L"ç›´æ–¹å›¾å‡è¡¡", L"æŒ‡æ•°å˜æ¢å¢å¼º", L"å¯¹æ•°å˜æ¢å¢å¼º", L"æ— æŸé¢„æµ‹ç¼–ç ",
-        L"å‡åŒ€é‡åŒ–", L"DCTå˜æ¢ç¼–ç " };
-
-    vector<function<void* (void*)>> onClick; // ç‚¹å‡»æŒ‰é’®è§¦å‘çš„å‡½æ•°æ—
-
-    //bmpæ–‡ä»¶è¯»å…¥
-    static void* func1(void* image = nullptr) {
+	}
+    vector<wstring>name = {L"bmpÎÄ¼ş¶ÁÈë",L"bmpÎÄ¼şÊä³ö",L"²Ã¼õ", L"ÇĞ¸î", L"gray to binary",
+        L"color to gray", L"Ö±·½Í¼¾ùºâ", L"Ö¸Êı±ä»»ÔöÇ¿", L"¶ÔÊı±ä»»ÔöÇ¿", L"ÎŞËğÔ¤²â±àÂë", L"ÎŞËğÔ¤²â½âÂë",
+        L"¾ùÔÈÁ¿»¯",L"IGS", L"DCT±ä»»±àÂë",L"·´DCT±ä»»"};
+    
+    vector<function<void*(void*,int)>> onClick; // µã»÷°´Å¥´¥·¢µÄº¯Êı×å
+    // ¸¨Öúº¯Êı£ºOTSU×Ô¶¯ãĞÖµ¼ÆËã
+    static int calculateOtsuThreshold(const Image& img);
+	//bmpÎÄ¼ş¶ÁÈë,indexÊÇµ±Ç°Í¼ÏñÔÚÍ¼ÏñÁĞ±íÖĞµÄË÷Òı£¬
+    // º¯Êı¿ÉÒÔ¸ù¾İÕâ¸öË÷Òı¶ÔÍ¼ÏñÁĞ±í½øĞĞĞŞ¸Ä
+    static void* func1(void*image=nullptr,int index=-1) {
 
         Image* img = new Image();
         string path = OpenFileDialog();
         if (path == "") {
-            MessageBox(NULL, L"æ²¡æœ‰é€‰æ‹©æ–‡ä»¶", L"é”™è¯¯", MB_OK | MB_ICONERROR);
+            MessageBox(NULL, L"Ã»ÓĞÑ¡ÔñÎÄ¼ş", L"´íÎó", MB_OK | MB_ICONERROR);
             return nullptr;
         }
         BMPIO::read(path, *img);
@@ -417,22 +418,22 @@ public:
 
     }
 
-    //bmpæ–‡ä»¶è¾“å‡º
-    static void* func2(void* img) {
+    //bmpÎÄ¼şÊä³ö
+    static void* func2(void*img, int index = 0) {
 
         vector<Image*>* images = static_cast<vector<Image*>*>(img);
 
         cout << "images size: " << images->size() << endl;
         if (images->size() == 0) {
-            MessageBox(NULL, L"æ²¡æœ‰å›¾åƒå¯ä»¥ä¿å­˜", L"é”™è¯¯", MB_OK | MB_ICONERROR);
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ±£´æ", L"´íÎó", MB_OK | MB_ICONERROR);
             return nullptr;
         }
 
-        // æ‰“å¼€æ–‡ä»¶å¤¹é€‰æ‹©å¯¹è¯æ¡†ï¼Œè·å–ç”¨æˆ·é€‰æ‹©çš„æ–‡ä»¶å¤¹è·¯å¾„
+        // ´ò¿ªÎÄ¼ş¼ĞÑ¡Ôñ¶Ô»°¿ò£¬»ñÈ¡ÓÃ»§Ñ¡ÔñµÄÎÄ¼ş¼ĞÂ·¾¶
         string folderPath = OpenFolderDialog();
 
         if (folderPath == "") {
-            MessageBox(NULL, L"æ²¡æœ‰é€‰æ‹©æ–‡ä»¶å¤¹", L"é”™è¯¯", MB_OK | MB_ICONERROR);
+            MessageBox(NULL, L"Ã»ÓĞÑ¡ÔñÎÄ¼ş¼Ğ", L"´íÎó", MB_OK | MB_ICONERROR);
             return nullptr;
         }
 
@@ -444,170 +445,1090 @@ public:
 
         }
 
-        // æ˜¾ç¤ºä¸€ä¸ªæ¶ˆæ¯æ¡†
+        // ÏÔÊ¾Ò»¸öÏûÏ¢¿ò
         if (suc) {
-            MessageBox(NULL, L"ä¿å­˜æˆåŠŸ", L"æç¤º", MB_OK | MB_ICONINFORMATION);
+            MessageBox(NULL, L"±£´æ³É¹¦", L"ÌáÊ¾", MB_OK | MB_ICONINFORMATION);
         }
         else {
-            MessageBox(NULL, L"ä¿å­˜å¤±è´¥", L"é”™è¯¯", MB_OK | MB_ICONERROR);
+            MessageBox(NULL, L"±£´æÊ§°Ü", L"´íÎó", MB_OK | MB_ICONERROR);
         }
 
         return nullptr;
     }
+    
+    // ======================== func3£ºÍ¼Ïñ²Ã¼ô ========================
+ // ¹¦ÄÜ£º´ÓÔ­Í¼ÖĞ²Ã¼õÒ»¸öĞ¡Í¼£¬ÔÊĞíÓÃ»§ÉèÖÃ²Ã¼ô²ÎÊı£¨×óÉÏ½Ç×ø±ê¡¢¿í¶È¡¢¸ß¶È£©
+    static void* func3(void* image = nullptr, int index = 0) {
 
-    //ä»åŸå›¾ä¸­è£å‡ä¸€ä¸ªå°å›¾ 
-    static void* func3(void* image = nullptr) {
-
-
-        // å®šä¹‰å­—ç¬¦ä¸²ç¼“å†²åŒºï¼Œå¹¶æ¥æ”¶ç”¨æˆ·è¾“å…¥
-        wchar_t s[10];
-        InputBox(s, 10, L"è¯·è¾“å…¥åŠå¾„");
-
-        // å°†ç”¨æˆ·è¾“å…¥è½¬æ¢ä¸ºæ•°å­—
-        int r = _wtoi(s);
-
-        // ç”»åœ†
-        circle(320, 240, r);
-
-
-        return nullptr;
-    }
-
-    //å°†åŸå›¾åˆ‡å‰²ä¸ºå¤šä¸ªå°å›¾
-    static void* func4(void* image = nullptr) {
-
-        // å®šä¹‰å­—ç¬¦ä¸²ç¼“å†²åŒºï¼Œå¹¶æ¥æ”¶ç”¨æˆ·è¾“å…¥
-        wchar_t s[10];
-        InputBox(s, 10, L"è¯·è¾“å…¥å°å›¾çš„è¡Œæ•°");
-
-        // å°†ç”¨æˆ·è¾“å…¥è½¬æ¢ä¸ºæ•°å­—
-        int row = _wtoi(s);
-
-        //æŠŠsrcå›¾ç‰‡åˆ†å‰²ï¼Œå­å›¾ç‰‡çš„å®½å’Œé«˜æ˜¯å‚æ•°ï¼ŒæŠŠå¾—åˆ°çš„å­å›¾ç‰‡ä»¥å‘é‡å½¢å¼è¿”å›
-        vector<Image> slice(const Image & src, int blockW, int blockH);
-
-        return nullptr;
-    }
-
-    static void* func5(void* image = nullptr) {
-        return nullptr;
-    }
-    static void* func6(void* image = nullptr) {
-        return nullptr;
-    }
-    static void* func7(void* image = nullptr) {
         vector<Image*>* images = static_cast<vector<Image*>*>(image);
-        if (images->empty()) {
-            MessageBox(NULL, L"æ²¡æœ‰å›¾åƒå¯ä»¥å¤„ç†", L"é”™è¯¯", MB_OK | MB_ICONERROR);
+
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
             return nullptr;
         }
-        Image* current = images->back();  // ä½¿ç”¨æœ€æ–°æ·»åŠ çš„å›¾åƒ
-        Image* result = new Image(Enhancement().histogramEqualization(*current));
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* srcImg = (*images)[index];
+        int srcWidth = srcImg->getwidth();
+        int srcHeight = srcImg->getheight();
+
+        // ÏÔÊ¾µ±Ç°Í¼Ïñ³ß´ç
+        wchar_t infoBuf[256];
+        swprintf_s(infoBuf, 256, L"µ±Ç°Í¼Ïñ³ß´ç£º%d x %d\nÇëÉèÖÃ²Ã¼ô²ÎÊı", srcWidth, srcHeight);
+        MessageBox(NULL, infoBuf, L"Í¼ÏñĞÅÏ¢", MB_OK | MB_ICONINFORMATION);
+
+        // ÊäÈë²Ã¼ô²ÎÊı
+        wchar_t params[100];
+        wchar_t prompt[256];
+        swprintf_s(prompt, 256, L"ÇëÊäÈë²Ã¼ô²ÎÊı\n¸ñÊ½£ºx,y,width,height\nÍ¼Ïñ³ß´ç£º%d x %d\nÊ¾Àı£º0,0,100,100",
+            srcWidth, srcHeight);
+
+        InputBox(params, 100, prompt);
+
+        // ½âÎö²ÎÊı
+        int x = 0, y = 0, w = 0, h = 0;
+        wchar_t* context = nullptr;
+        wchar_t* token = wcstok_s(params, L",", &context);
+
+        if (token != nullptr) {
+            x = _wtoi(token);
+            token = wcstok_s(nullptr, L",", &context);
+            if (token != nullptr) {
+                y = _wtoi(token);
+                token = wcstok_s(nullptr, L",", &context);
+                if (token != nullptr) {
+                    w = _wtoi(token);
+                    token = wcstok_s(nullptr, L",", &context);
+                    if (token != nullptr) {
+                        h = _wtoi(token);
+                    }
+                }
+            }
+        }
+
+        // ²ÎÊıÓĞĞ§ĞÔ¼ì²é
+        if (w <= 0 || h <= 0) {
+            MessageBox(NULL, L"´íÎó£º²Ã¼ô¿í¶ÈºÍ¸ß¶È±ØĞë´óÓÚ0", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (x < 0 || y < 0) {
+            MessageBox(NULL, L"´íÎó£º²Ã¼ôÆğÊ¼×ø±ê²»ÄÜÎª¸ºÊı", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (x + w > srcWidth || y + h > srcHeight) {
+            wchar_t errorBuf[512];
+            swprintf_s(errorBuf, 512, L"´íÎó£º²Ã¼ôÇøÓò³¬³öÍ¼Ïñ·¶Î§£¡\nÍ¼Ïñ·¶Î§£º[0, %d] x [0, %d]\n²Ã¼ôÇøÓò£º[%d, %d] x [%d, %d]",
+                srcWidth, srcHeight, x, x + w, y, y + h);
+            MessageBox(NULL, errorBuf, L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        // Ö´ĞĞ²Ã¼ô
+        Image* result = new Image(CropSlice::crop(*srcImg, x, y, w, h));
+
+        // ÏÔÊ¾½á¹û²¢Ñ¯ÎÊÊÇ·ñ±£´æ
+        wchar_t resultBuf[256];
+        swprintf_s(resultBuf, 256, L"²Ã¼ô³É¹¦£¡\n²Ã¼ôÇøÓò£º(%d, %d) ³ß´ç£º%d x %d\nÊÇ·ñ±£´æµ½Ó²ÅÌ£¿",
+            x, y, w, h);
+
+        int saveChoice = MessageBox(NULL, resultBuf, L"ÌáÊ¾", MB_YESNO | MB_ICONQUESTION);
+
+        if (saveChoice == IDYES) {
+            string folderPath = OpenFolderDialog();
+            if (folderPath != "") {
+                string filepath = folderPath + "\\crop_result.bmp";
+                if (BMPIO::write(filepath, *result)) {
+                    MessageBox(NULL, L"²Ã¼ôÍ¼ÏñÒÑ±£´æµ½Ó²ÅÌ", L"ÌáÊ¾", MB_OK | MB_ICONINFORMATION);
+                }
+                else {
+                    MessageBox(NULL, L"±£´æÊ§°Ü", L"´íÎó", MB_OK | MB_ICONERROR);
+                }
+            }
+        }
+
         return result;
     }
-    static void* func8(void* image = nullptr) {
-        return nullptr;
+
+    // ======================== func4£ºÍ¼ÏñÇĞ¸î ========================
+  // ¹¦ÄÜ£º½«Ô­Í¼ÇĞ¸îÎª¶à¸öĞ¡Í¼£¬ÔÊĞíÓÃ»§ÉèÖÃĞ¡Í¼³ß´ç£¨¿í¶ÈºÍ¸ß¶È£©
+    static void* func4(void* image = nullptr, int index = 0) {
+
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* srcImg = (*images)[index];
+        int srcWidth = srcImg->getwidth();
+        int srcHeight = srcImg->getheight();
+
+        // ÏÔÊ¾µ±Ç°Í¼Ïñ³ß´ç
+        wchar_t infoBuf[256];
+        swprintf_s(infoBuf, 256, L"µ±Ç°Í¼Ïñ³ß´ç£º%d x %d\nÇëÊäÈëÇĞ¸î¿é³ß´ç", srcWidth, srcHeight);
+        MessageBox(NULL, infoBuf, L"Í¼ÏñĞÅÏ¢", MB_OK | MB_ICONINFORMATION);
+
+        // ÊäÈëÇĞ¸î²ÎÊı£¨¿é¿í¶ÈºÍ¿é¸ß¶È£©
+        wchar_t params[100];
+        wchar_t prompt[256];
+        swprintf_s(prompt, 256, L"ÇëÊäÈëÇĞ¸î¿é³ß´ç\n¸ñÊ½£ºblockWidth,blockHeight\nÍ¼Ïñ³ß´ç£º%d x %d\nÊ¾Àı£º100,100",
+            srcWidth, srcHeight);
+
+        InputBox(params, 100, prompt);
+
+        // ½âÎö²ÎÊı
+        int blockW = 0, blockH = 0;
+        wchar_t* context = nullptr;
+        wchar_t* token = wcstok_s(params, L",", &context);
+
+        if (token != nullptr) {
+            blockW = _wtoi(token);
+            token = wcstok_s(nullptr, L",", &context);
+            if (token != nullptr) {
+                blockH = _wtoi(token);
+            }
+        }
+
+        // ²ÎÊıÓĞĞ§ĞÔ¼ì²é
+        if (blockW <= 0 || blockH <= 0) {
+            MessageBox(NULL, L"´íÎó£ºÇĞ¸î¿é¿í¶ÈºÍ¸ß¶È±ØĞë´óÓÚ0", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (blockW > srcWidth || blockH > srcHeight) {
+            MessageBox(NULL, L"´íÎó£ºÇĞ¸î¿é³ß´ç²»ÄÜ´óÓÚÔ­Í¼Ïñ³ß´ç", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        // ¼ÆËã¿ÉÒÔÇĞ¸îµÄ¿éÊı
+        int cols = srcWidth / blockW;   // Ë®Æ½·½Ïò¿éÊı
+        int rows = srcHeight / blockH;  // ´¹Ö±·½Ïò¿éÊı
+
+        if (cols == 0 || rows == 0) {
+            MessageBox(NULL, L"´íÎó£ºÇĞ¸î¿é³ß´çÌ«´ó£¬ÎŞ·¨ÇĞ¸î³öÍêÕû¿é", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        int totalBlocks = cols * rows;
+        int actualWidth = cols * blockW;
+        int actualHeight = rows * blockH;
+
+        // ÏÔÊ¾ÇĞ¸îĞÅÏ¢²¢È·ÈÏ
+        wchar_t confirmBuf[512];
+        swprintf_s(confirmBuf, 512,
+            L"ÇĞ¸îĞÅÏ¢£º\n"
+            L"Ô­Í¼³ß´ç£º%d x %d\n"
+            L"¿é³ß´ç£º%d x %d\n"
+            L"ÇĞ¸îÊıÁ¿£º%d ĞĞ x %d ÁĞ = %d ¿é\n"
+            L"Êµ¼ÊÇĞ¸îÇøÓò£º%d x %d\n"
+            L"£¨±ßÔµ²»×ãÒ»¿éµÄ²¿·Ö½«±»¶ªÆú£©\n\n"
+            L"ÊÇ·ñ¼ÌĞø£¿",
+            srcWidth, srcHeight, blockW, blockH, rows, cols, totalBlocks, actualWidth, actualHeight);
+
+        int confirm = MessageBox(NULL, confirmBuf, L"È·ÈÏÇĞ¸î", MB_YESNO | MB_ICONQUESTION);
+        if (confirm != IDYES) {
+            return nullptr;
+        }
+
+        // Ö´ĞĞÇĞ¸î
+        vector<Image> subImages = CropSlice::slice(*srcImg, blockW, blockH);
+
+        if (subImages.empty()) {
+            MessageBox(NULL, L"ÇĞ¸îÊ§°Ü£¬Î´Éú³ÉÈÎºÎ×ÓÍ¼", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        // ½«ÇĞ¸îµÃµ½µÄ×ÓÍ¼Ìí¼Óµ½ĞÂµÄÍ¼ÏñÁĞ±íÖĞ
+        vector<Image*>* resultImages = new vector<Image*>();
+        for (auto& subImg : subImages) {
+            resultImages->push_back(new Image(subImg));
+        }
+
+        // Ñ¯ÎÊÊÇ·ñ±£´æµ½Ó²ÅÌ
+        wchar_t saveBuf[256];
+        swprintf_s(saveBuf, 256, L"ÇĞ¸î³É¹¦£¡¹²»ñµÃ %d ÕÅ×ÓÍ¼¡£\nÊÇ·ñ½«ËùÓĞ×ÓÍ¼±£´æµ½Ó²ÅÌ£¿", (int)subImages.size());
+        int saveChoice = MessageBox(NULL, saveBuf, L"ÌáÊ¾", MB_YESNO | MB_ICONQUESTION);
+
+        if (saveChoice == IDYES) {
+            string folderPath = OpenFolderDialog();
+            if (folderPath != "") {
+                int successCount = 0;
+                for (size_t i = 0; i < subImages.size(); i++) {
+                    string filepath = folderPath + "\\subimage_" + to_string(i) + ".bmp";
+                    if (BMPIO::write(filepath, subImages[i])) {
+                        successCount++;
+                    }
+                }
+
+                wchar_t resultBuf[256];
+                swprintf_s(resultBuf, 256, L"ÒÑ±£´æ %d / %d ÕÅ×ÓÍ¼µ½Ó²ÅÌ", successCount, (int)subImages.size());
+                MessageBox(NULL, resultBuf, L"ÌáÊ¾", MB_OK | MB_ICONINFORMATION);
+            }
+        }
+
+        // ½«ÇĞ¸î½á¹û×÷ÎªĞÂµÄÍ¼ÏñÁĞ±í·µ»Ø£¬·½±ãÓÃ»§Öğ¸ö²é¿´
+        return resultImages;
     }
-    static void* func9(void* image = nullptr) {
-        return nullptr;
+    // ======================== func5£º»Ò¶È×ª¶şÖµ£¨ÈıÖÖ·½·¨£© ========================
+       // ¹¦ÄÜ£º½«»Ò¶ÈÍ¼Ïñ×ª»»ÎªºÚ°×Í¼Ïñ
+       // ·½·¨1£ºµ¥ãĞÖµ·¨ - ÔÊĞíÓÃ»§ÉèÖÃãĞÖµ
+       // ·½·¨2£ºFloyd-SteinbergÎó²îÀ©É¢¶¶¶¯·¨
+       // ·½·¨3£ºÓĞĞò¶¶¶¯·¨(Ordered Dither) - ÔÊĞíÓÃ»§ÉèÖÃ¾ØÕó´óĞ¡
+    static void* func5(void* image = nullptr, int index = 0) {
+
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* srcImg = (*images)[index];
+
+        // ¼ì²éÊÇ·ñÎª»Ò¶ÈÍ¼Ïñ
+        if (srcImg->getType() != Image::Gray && srcImg->getbitcount() != 8) {
+            MessageBox(NULL,
+                L"´íÎó£ºµ±Ç°Í¼Ïñ²»ÊÇ»Ò¶ÈÍ¼Ïñ£¡\n"
+                L"gray to binary Ö»ÄÜ´¦Àí8-bit»Ò¶ÈÍ¼Ïñ¡£\n"
+                L"ÇëÏÈÊ¹ÓÃ\"color to gray\"¹¦ÄÜ½«Í¼Ïñ×ª»»Îª»Ò¶ÈÍ¼Ïñ¡£",
+                L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        // Ñ¡Ôñ¶şÖµ»¯·½·¨
+        int methodChoice = MessageBox(NULL,
+            L"¨X¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨[\n"
+            L"¨U          »Ò¶È×ª¶şÖµÍ¼Ïñ - ÇëÑ¡Ôñ·½·¨                ¨U\n"
+            L"¨d¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨g\n"
+            L"¨U  ÊÇ   - ·½·¨1£ºµ¥ãĞÖµ·¨                              ¨U\n"
+            L"¨U  ·ñ   - ·½·¨2£ºFloyd-SteinbergÎó²îÀ©É¢¶¶¶¯·¨        ¨U\n"
+            L"¨U  È¡Ïû - ·½·¨3£ºÓĞĞò¶¶¶¯·¨(Ordered Dither)           ¨U\n"
+            L"¨^¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨T¨a",
+            L"Ñ¡Ôñ¶şÖµ»¯·½·¨", MB_YESNOCANCEL | MB_ICONQUESTION);
+
+        ModeConvert converter;
+        Image* result = nullptr;
+
+        // ==================== ·½·¨1£ºµ¥ãĞÖµ·¨ ====================
+        if (methodChoice == IDYES) {
+
+            // ÊäÈëãĞÖµ
+            wchar_t s[20];
+            InputBox(s, 20, L"ÇëÊäÈëãĞÖµ£¨0-255£©\n\nÏñËØÖµ > ãĞÖµ ÉèÎª°×É«(1)\nÏñËØÖµ <= ãĞÖµ ÉèÎªºÚÉ«(0)", L"128");
+            int threshold = _wtoi(s);
+
+            // ãĞÖµ·¶Î§¼ì²é
+            if (threshold < 0) threshold = 0;
+            if (threshold > 255) threshold = 255;
+
+            // Ö´ĞĞµ¥ãĞÖµ·¨¶şÖµ»¯
+            result = new Image(converter.grayToBinaryT(*srcImg, threshold));
+
+            // ÏÔÊ¾½á¹û
+            wchar_t msgBuf[256];
+            swprintf_s(msgBuf, 256, L"µ¥ãĞÖµ·¨Íê³É£¡\nãĞÖµ£º%d\n\nÍ¼ÏñÒÑ×ª»»ÎªºÚ°×Í¼Ïñ", threshold);
+            MessageBox(NULL, msgBuf, L"´¦ÀíÍê³É", MB_OK | MB_ICONINFORMATION);
+
+            // ==================== ·½·¨2£ºFloyd-SteinbergÎó²îÀ©É¢¶¶¶¯·¨ ====================
+        }
+        else if (methodChoice == IDNO) {
+
+            // ÏÔÊ¾Ëã·¨ËµÃ÷
+            MessageBox(NULL,
+                L"Floyd-SteinbergÎó²îÀ©É¢¶¶¶¯·¨\n\n"
+                L"Ëã·¨Ô­Àí£º\n"
+                L"½«Á¿»¯Îó²î°´È¨ÖØÀ©É¢µ½ÏàÁÚµÄÎ´´¦ÀíÏñËØ£º\n"
+                L"    X    7/16\n"
+                L"3/16  5/16  1/16\n\n"
+                L"ÌØµã£º\n"
+                L"ÄÜ¹»±£Áô¸ü¶àµÄÍ¼ÏñÏ¸½Ú\n"
+                L"ÊÓ¾õĞ§¹û×ÔÈ»£¬ÊÊºÏÓĞ½¥±äÇøÓòµÄÍ¼Ïñ\n"
+                L"ÊÇÄ¿Ç°×î³£ÓÃµÄ¶¶¶¯Ëã·¨Ö®Ò»\n\n"
+                L"µã»÷È·¶¨¿ªÊ¼´¦Àí...",
+                L"Ëã·¨ËµÃ÷", MB_OK);
+
+            // Ö´ĞĞFloyd-SteinbergÎó²îÀ©É¢¶¶¶¯·¨
+            result = new Image(converter.grayToBinaryD(*srcImg, 0));
+
+            MessageBox(NULL, L"Floyd-SteinbergÎó²îÀ©É¢¶¶¶¯·¨Íê³É£¡\n\nÍ¼ÏñÒÑ×ª»»ÎªºÚ°×Í¼Ïñ",
+                L"´¦ÀíÍê³É", MB_OK | MB_ICONINFORMATION);
+
+            // ==================== ·½·¨3£ºÓĞĞò¶¶¶¯·¨ (Ordered Dither) ====================
+        }
+        else if (methodChoice == IDCANCEL) {
+
+            // Ñ¡ÔñBayer¾ØÕó´óĞ¡
+            int matrixChoice = MessageBox(NULL,
+                L"ÓĞĞò¶¶¶¯·¨(Ordered Dither) - ÇëÑ¡ÔñBayer¾ØÕó´óĞ¡\n\n"
+                L"ÊÇ   - 2x2¾ØÕó£¨Ğ§¹û½Ï²î£¬ËÙ¶È¿ì£©\n"
+                L"·ñ   - 4x4¾ØÕó£¨Ğ§¹ûÖĞµÈ£©\n"
+                L"È¡Ïû - 8x8¾ØÕó£¨Ğ§¹û×îºÃ£¬ÍÆ¼ö£©",
+                L"Ñ¡Ôñ¾ØÕó´óĞ¡", MB_YESNOCANCEL | MB_ICONQUESTION);
+
+            int matrixSize = 8;  // Ä¬ÈÏ8x8
+            const wchar_t* sizeDesc = L"8x8";
+
+            if (matrixChoice == IDYES) {
+                matrixSize = 2;
+                sizeDesc = L"2x2";
+            }
+            else if (matrixChoice == IDNO) {
+                matrixSize = 4;
+                sizeDesc = L"4x4";
+            }
+            else if (matrixChoice == IDCANCEL) {
+                matrixSize = 8;
+                sizeDesc = L"8x8";
+            }
+            else {
+                return nullptr;  // ÓÃ»§È¡Ïû
+            }
+
+            // ÏÔÊ¾Ëã·¨ËµÃ÷
+            wchar_t infoBuf[512];
+            swprintf_s(infoBuf, 512,
+                L"ÓĞĞò¶¶¶¯·¨(Ordered Dither)\n\n"
+                L"Bayer¾ØÕó´óĞ¡£º%s\n\n"
+                L"Ëã·¨Ô­Àí£º\n"
+                L"Ê¹ÓÃBayer¾ØÕó×÷ÎªãĞÖµ¾ØÕó£¬¶ÔÃ¿¸öÏñËØ½øĞĞ±È½Ï£º\n"
+                L"if(ÏñËØÖµ > ãĞÖµ) ÉèÎª°×É« else ÉèÎªºÚÉ«\n\n"
+                L"ÌØµã£º\n"
+                L"¾ØÕóÔ½´ó£¬Í¼Ïñ²ã´Î¸ĞÔ½ºÃ\n"
+                L"ÊÊºÏ´òÓ¡Êä³ö³¡¾°\n"
+                L"¼ÆËãËÙ¶È¿ì\n\n"
+                L"µã»÷È·¶¨¿ªÊ¼´¦Àí...", sizeDesc);
+
+            MessageBox(NULL, infoBuf, L"Ëã·¨ËµÃ÷", MB_OK);
+
+            // Ö´ĞĞÓĞĞò¶¶¶¯·¨
+            result = new Image(converter.grayToBinaryOD(*srcImg, matrixSize));
+
+            wchar_t msgBuf[256];
+            swprintf_s(msgBuf, 256, L"ÓĞĞò¶¶¶¯·¨Íê³É£¡\nBayer¾ØÕó´óĞ¡£º%s\n\nÍ¼ÏñÒÑ×ª»»ÎªºÚ°×Í¼Ïñ", sizeDesc);
+            MessageBox(NULL, msgBuf, L"´¦ÀíÍê³É", MB_OK | MB_ICONINFORMATION);
+
+        }
+        else {
+            return nullptr;  // ÓÃ»§È¡Ïû
+        }
+
+        // Ñ¯ÎÊÊÇ·ñ±£´æ½á¹ûµ½Ó²ÅÌ
+        if (result != nullptr) {
+            int saveChoice = MessageBox(NULL,
+                L"´¦ÀíÍê³É£¡\nÊÇ·ñ½«¶şÖµÍ¼Ïñ±£´æµ½Ó²ÅÌ£¿",
+                L"ÌáÊ¾", MB_YESNO | MB_ICONQUESTION);
+
+            if (saveChoice == IDYES) {
+                string folderPath = OpenFolderDialog();
+                if (folderPath != "") {
+                    // ¸ù¾İ·½·¨Éú³É²»Í¬µÄÎÄ¼şÃû
+                    string filename;
+                    if (methodChoice == IDYES) {
+                        filename = "binary_threshold.bmp";
+                    }
+                    else if (methodChoice == IDNO) {
+                        filename = "binary_floyd_steinberg.bmp";
+                    }
+                    else {
+                        filename = "binary_ordered_dither.bmp";
+                    }
+                    string filepath = folderPath + "\\" + filename;
+                    if (BMPIO::write(filepath, *result)) {
+                        MessageBox(NULL, L"¶şÖµÍ¼ÏñÒÑ±£´æµ½Ó²ÅÌ", L"ÌáÊ¾", MB_OK | MB_ICONINFORMATION);
+                    }
+                    else {
+                        MessageBox(NULL, L"±£´æÊ§°Ü", L"´íÎó", MB_OK | MB_ICONERROR);
+                    }
+                }
+            }
+        }
+
+        return result;
     }
-    static void* func10(void* image = nullptr) {
-        return nullptr;
+    
+    // ======================== func6£º²ÊÉ«×ª»Ò¶È ========================
+    // ¹¦ÄÜ£º½«Õæ²ÊÍ¼Ïñ£¨24-bit»ò32-bit£©×ª»»Îª»Ò¶ÈÍ¼Ïñ£¨8-bit£©
+    // Ëã·¨£ºÊ¹ÓÃÁÁ¶È¹«Ê½ Y = 0.299R + 0.587G + 0.114B
+    static void* func6(void* image = nullptr, int index = 0) {
+
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* srcImg = (*images)[index];
+        int bitCount = srcImg->getbitcount();
+
+        // ¼ì²éÊÇ·ñÎª²ÊÉ«Í¼Ïñ£¨24-bit»ò32-bit£©
+        if (bitCount != 24 && bitCount != 32) {
+            // Èç¹ûÊÇ»Ò¶ÈÍ¼Ïñ£¬ÌáÊ¾ÎŞĞè×ª»»
+            if (bitCount == 8) {
+                MessageBox(NULL,
+                    L"µ±Ç°Í¼ÏñÒÑ¾­ÊÇ»Ò¶ÈÍ¼Ïñ£¨8-bit£©£¬ÎŞĞè×ª»»¡£\n\n"
+                    L"ÈçĞèÔÙ´Î×ª»»£¬ÇëÑ¡Ôñ²ÊÉ«Í¼Ïñ¡£",
+                    L"ÌáÊ¾", MB_OK | MB_ICONINFORMATION);
+                return nullptr;
+            }
+            // Èç¹ûÊÇ¶şÖµÍ¼Ïñ
+            else if (bitCount == 1) {
+                MessageBox(NULL,
+                    L"µ±Ç°Í¼ÏñÊÇ¶şÖµÍ¼Ïñ£¨1-bit£©£¬ÎŞ·¨×ª»»Îª»Ò¶ÈÍ¼Ïñ¡£\n\n"
+                    L"ÇëÑ¡Ôñ24-bit»ò32-bit²ÊÉ«Í¼Ïñ¡£",
+                    L"´íÎó", MB_OK | MB_ICONERROR);
+                return nullptr;
+            }
+            else {
+                MessageBox(NULL,
+                    L"´íÎó£ºµ±Ç°Í¼Ïñ²»ÊÇ²ÊÉ«Í¼Ïñ£¡\n\n"
+                    L"color to gray Ö»ÄÜ´¦Àí24-bit»ò32-bitÕæ²ÊÍ¼Ïñ¡£",
+                    L"´íÎó", MB_OK | MB_ICONERROR);
+                return nullptr;
+            }
+        }
+
+        // ÏÔÊ¾Ëã·¨ËµÃ÷
+        MessageBox(NULL,
+            L"²ÊÉ«×ª»Ò¶ÈËã·¨ËµÃ÷\n\n"
+            L"×ª»»¹«Ê½£¨ÁÁ¶È¹«Ê½£©£º\n"
+            L"Y = 0.299 * R + 0.587 * G + 0.114 * B\n\n"
+            L"ÆäÖĞ£º\n"
+            L"Y ÎªÊä³ö»Ò¶ÈÖµ£¨0-255£©\n"
+            L"R¡¢G¡¢B Îª²ÊÉ«Í¼ÏñµÄÈı¸öÑÕÉ«·ÖÁ¿\n\n"
+            L"µã»÷È·¶¨¿ªÊ¼´¦Àí...",
+            L"Ëã·¨ËµÃ÷", MB_OK);
+
+        // Ö´ĞĞ²ÊÉ«×ª»Ò¶È
+        ModeConvert converter;
+        Image* result = new Image(converter.colorToGray(*srcImg));
+
+        // ÏÔÊ¾½á¹û
+        wchar_t msgBuf[256];
+        swprintf_s(msgBuf, 256,
+            L"²ÊÉ«×ª»Ò¶ÈÍê³É£¡\n\n"
+            L"Ô­Í¼Ïñ£º%d-bit ²ÊÉ«Í¼Ïñ\n"
+            L"½á¹û£º8-bit »Ò¶ÈÍ¼Ïñ\n"
+            L"³ß´ç£º%d x %d",
+            bitCount, result->getwidth(), result->getheight());
+        MessageBox(NULL, msgBuf, L"´¦ÀíÍê³É", MB_OK | MB_ICONINFORMATION);
+
+        // Ñ¯ÎÊÊÇ·ñ±£´æµ½Ó²ÅÌ
+        int saveChoice = MessageBox(NULL,
+            L"ÊÇ·ñ½«»Ò¶ÈÍ¼Ïñ±£´æµ½Ó²ÅÌ£¿",
+            L"ÌáÊ¾", MB_YESNO | MB_ICONQUESTION);
+
+        if (saveChoice == IDYES) {
+            string folderPath = OpenFolderDialog();
+            if (folderPath != "") {
+                string filepath = folderPath + "\\gray_image.bmp";
+                if (BMPIO::write(filepath, *result)) {
+                    MessageBox(NULL, L"»Ò¶ÈÍ¼ÏñÒÑ±£´æµ½Ó²ÅÌ", L"ÌáÊ¾", MB_OK | MB_ICONINFORMATION);
+                }
+                else {
+                    MessageBox(NULL, L"±£´æÊ§°Ü", L"´íÎó", MB_OK | MB_ICONERROR);
+                }
+            }
+        }
+
+        return result;
     }
-    static void* func11(void* image = nullptr) {
-        return nullptr;
+    static void* func7(void* image = nullptr, int index = 0) {
+        // »ñÈ¡Í¼ÏñÁĞ±í
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* srcImg = (*images)[index];
+
+        // ÏÔÊ¾Ëã·¨ËµÃ÷
+        MessageBox(NULL,
+            L"×ÔÊÊÓ¦Ö±·½Í¼¾ùºâ (CLAHE)\n\n"
+            L"Ëã·¨Ô­Àí£º\n"
+            L"  1. ½«Í¼Ïñ·ÖÎª 8¡Á8 ×Ó¿é\n"
+            L"  2. Ã¿¿éÄÚ×öÖ±·½Í¼¾ùºâ + ¶Ô±È¶ÈÏŞÖÆ\n"
+            L"  3. Ë«ÏßĞÔ²åÖµÏû³ı¿é±ß½ç\n\n"
+            L"¶Ô»Ò¶ÈÍ¼Ö±½Ó´¦Àí\n"
+            L"¶Ô²ÊÉ«Í¼£º×ªHSV£¬´¦ÀíVÍ¨µÀºó×ª»ØRGB\n\n"
+            L"µã»÷È·¶¨¿ªÊ¼´¦Àí...",
+            L"Ëã·¨ËµÃ÷", MB_OK);
+
+        // Ö´ĞĞÖ±·½Í¼¾ùºâ
+        Enhancement enhancer;
+        Image* result = new Image(enhancer.histogramEqualization(*srcImg));
+
+        // ÏÔÊ¾Íê³ÉÌáÊ¾
+        wchar_t msgBuf[256];
+        swprintf_s(msgBuf, 256,
+            L"Ö±·½Í¼¾ùºâÍê³É£¡\n\n"
+            L"Ô­Í¼: %d x %d, %d-bit\n"
+            L"½á¹û: %d x %d, %d-bit",
+            srcImg->getwidth(), srcImg->getheight(), srcImg->getbitcount(),
+            result->getwidth(), result->getheight(), result->getbitcount());
+        MessageBox(NULL, msgBuf, L"´¦ÀíÍê³É", MB_OK | MB_ICONINFORMATION);
+
+        // Ñ¯ÎÊÊÇ·ñ±£´æµ½Ó²ÅÌ
+        int saveChoice = MessageBox(NULL,
+            L"ÊÇ·ñ½«½á¹ûÍ¼Ïñ±£´æµ½Ó²ÅÌ£¿",
+            L"ÌáÊ¾", MB_YESNO | MB_ICONQUESTION);
+
+        if (saveChoice == IDYES) {
+            string folderPath = OpenFolderDialog();
+            if (folderPath != "") {
+                string filepath = folderPath + "\\histogram_equalized.bmp";
+                if (BMPIO::write(filepath, *result)) {
+                    MessageBox(NULL, L"Ö±·½Í¼¾ùºâÍ¼ÏñÒÑ±£´æµ½Ó²ÅÌ", L"ÌáÊ¾", MB_OK | MB_ICONINFORMATION);
+                }
+                else {
+                    MessageBox(NULL, L"±£´æÊ§°Ü", L"´íÎó", MB_OK | MB_ICONERROR);
+                }
+            }
+        }
+
+        return result;
     }
-    static void* func12(void* image = nullptr) {
-        return nullptr;
+    static void* func8(void* image = nullptr, int index = 0) {
+        // »ñÈ¡Í¼ÏñÁĞ±í
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* srcImg = (*images)[index];
+
+        // ÊäÈë gamma Öµ
+        wchar_t s[50];
+        InputBox(s, 50,
+            L"ÇëÊäÈëÖ¸Êı (gamma) Öµ£º\n\n"
+            L"¹«Ê½: output = 255 * (input/255)^gamma\n\n"
+            L"gamma > 1  ¡ú Ñ¹°µÍ¼Ïñ£¬ÔöÇ¿ÁÁ²¿¶Ô±È\n"
+            L"gamma < 1  ¡ú ÌáÁÁÍ¼Ïñ£¬ÔöÇ¿°µ²¿Ï¸½Ú\n");
+
+        double gamma = _wtof(s);
+        if (gamma <= 0.0) {
+            MessageBox(NULL, L"gamma ±ØĞë´óÓÚ 0", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        // ÏÔÊ¾Ëã·¨ËµÃ÷
+        MessageBox(NULL,
+            L"Ö¸Êı(ÃİÂÉ)±ä»»ÔöÇ¿\n\n"
+            L"¹«Ê½: s = 255 * (r/255)^¦Ã\n\n"
+            L"r = ÊäÈëÏñËØÖµ [0, 255]\n"
+            L"s = Êä³öÏñËØÖµ [0, 255]\n"
+            L"¦Ã = Ö¸Êı²ÎÊı\n\n"
+            L"µã»÷È·¶¨¿ªÊ¼´¦Àí...",
+            L"Ëã·¨ËµÃ÷", MB_OK);
+
+        // Ö´ĞĞÖ¸Êı±ä»»
+        Enhancement enhancer;
+        Image* result = new Image(enhancer.expTransform(*srcImg, gamma));
+
+        // ÏÔÊ¾Íê³ÉÌáÊ¾
+        wchar_t msgBuf[256];
+        swprintf_s(msgBuf, 256,
+            L"Ö¸Êı±ä»»Íê³É£¡\n"
+            L"gamma = %.2f\n\n"
+            L"Ô­Í¼: %d x %d, %d-bit\n"
+            L"½á¹û: %d x %d, %d-bit",
+            gamma,
+            srcImg->getwidth(), srcImg->getheight(), srcImg->getbitcount(),
+            result->getwidth(), result->getheight(), result->getbitcount());
+        MessageBox(NULL, msgBuf, L"´¦ÀíÍê³É", MB_OK | MB_ICONINFORMATION);
+
+        // Ñ¯ÎÊÊÇ·ñ±£´æµ½Ó²ÅÌ
+        int saveChoice = MessageBox(NULL,
+            L"ÊÇ·ñ½«½á¹ûÍ¼Ïñ±£´æµ½Ó²ÅÌ£¿",
+            L"ÌáÊ¾", MB_YESNO | MB_ICONQUESTION);
+
+        if (saveChoice == IDYES) {
+            string folderPath = OpenFolderDialog();
+            if (folderPath != "") {
+                string filepath = folderPath + "\\exp_transformed.bmp";
+                if (BMPIO::write(filepath, *result)) {
+                    MessageBox(NULL, L"Ö¸Êı±ä»»Í¼ÏñÒÑ±£´æµ½Ó²ÅÌ", L"ÌáÊ¾", MB_OK | MB_ICONINFORMATION);
+                }
+                else {
+                    MessageBox(NULL, L"±£´æÊ§°Ü", L"´íÎó", MB_OK | MB_ICONERROR);
+                }
+            }
+        }
+
+        return result;
     }
-    static void* func13(void* image = nullptr) {
-        return nullptr;
+    static void* func9(void* image = nullptr, int index = 0) {
+        // »ñÈ¡Í¼ÏñÁĞ±í
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* srcImg = (*images)[index];
+
+        // ÊäÈë³£Êı c
+        wchar_t s[50];
+        InputBox(s, 50,
+            L"ÇëÊäÈë³£Êı c Öµ£º\n\n"
+            L"¹«Ê½: output = c * log(1 + input) / log(256) * 255\n"
+            L"c £¾ 1 ¡ú ÕûÌåÔöÁÁ£¬À­Éì°µÇøÏ¸½Ú£¬Ñ¹ËõÁÁÇø¶¯Ì¬·¶Î§\n"
+            L"ÊÊºÏ´¦ÀíÕûÌåÆ«°µµÄÍ¼Ïñ\n\n");
+
+        double c = _wtof(s);
+        if (c <= 0.0) {
+            MessageBox(NULL, L"c ±ØĞë´óÓÚ 0", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        // ÏÔÊ¾Ëã·¨ËµÃ÷
+        MessageBox(NULL,
+            L"¶ÔÊı±ä»»ÔöÇ¿\n\n"
+            L"¹«Ê½: s = c * log(1 + r) / log(256) * 255\n\n"
+            L"r = ÊäÈëÏñËØÖµ [0, 255]\n"
+            L"s = Êä³öÏñËØÖµ [0, 255]\n"
+            L"c = Ëõ·Å³£Êı\n\n"
+            L"µã»÷È·¶¨¿ªÊ¼´¦Àí...",
+            L"Ëã·¨ËµÃ÷", MB_OK);
+
+        // Ö´ĞĞ¶ÔÊı±ä»»
+        Enhancement enhancer;
+        Image* result = new Image(enhancer.logTransform(*srcImg, c));
+
+        // ÏÔÊ¾Íê³ÉÌáÊ¾
+        wchar_t msgBuf[256];
+        swprintf_s(msgBuf, 256,
+            L"¶ÔÊı±ä»»Íê³É£¡\n"
+            L"c = %.2f\n\n"
+            L"Ô­Í¼: %d x %d, %d-bit\n"
+            L"½á¹û: %d x %d, %d-bit",
+            c,
+            srcImg->getwidth(), srcImg->getheight(), srcImg->getbitcount(),
+            result->getwidth(), result->getheight(), result->getbitcount());
+        MessageBox(NULL, msgBuf, L"´¦ÀíÍê³É", MB_OK | MB_ICONINFORMATION);
+
+        // Ñ¯ÎÊÊÇ·ñ±£´æµ½Ó²ÅÌ
+        int saveChoice = MessageBox(NULL,
+            L"ÊÇ·ñ½«½á¹ûÍ¼Ïñ±£´æµ½Ó²ÅÌ£¿",
+            L"ÌáÊ¾", MB_YESNO | MB_ICONQUESTION);
+
+        if (saveChoice == IDYES) {
+            string folderPath = OpenFolderDialog();
+            if (folderPath != "") {
+                string filepath = folderPath + "\\log_transformed.bmp";
+                if (BMPIO::write(filepath, *result)) {
+                    MessageBox(NULL, L"¶ÔÊı±ä»»Í¼ÏñÒÑ±£´æµ½Ó²ÅÌ", L"ÌáÊ¾", MB_OK | MB_ICONINFORMATION);
+                }
+                else {
+                    MessageBox(NULL, L"±£´æÊ§°Ü", L"´íÎó", MB_OK | MB_ICONERROR);
+                }
+            }
+        }
+
+        return result;
     }
 
+	//ÎŞËğÔ¤²â±àÂë
+    static void* func10(void* image = nullptr, int index = 0) {
+        //Õû¸öÍ¼ÏñĞòÁĞ
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        
+        if(index<0 || index>=images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+		}
+
+        //´ı´¦ÀíµÄÍ¼Ïñ
+        Image* img = (*images)[index];
+
+        if (img->getType() != Image::Gray) {
+            MessageBox(NULL, L"Í¼Ïñ¸ñÊ½ÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        wchar_t sParams[50];
+        InputBox(sParams, 50, L"ÇëÊäÈëÔ¤²â½×ÊıºÍÏµÊı\n£¨¸ñÊ½£º½×Êı,ÏµÊı1,ÏµÊı2,ÏµÊı3...£©\nÀıÈç£º2,0.5,0.5\nÖ»Ö§³Ö1-3½×");
+		vector<double> coefficients(3,0.0); //Ô¤²âÏµÊı
+
+        wchar_t* context = nullptr;
+        wchar_t* token = wcstok_s(sParams, L",", &context); // 
+        if (token != nullptr) {
+            wchar_t* endptr;
+            long order = wcstol(token, &endptr, 10);
+            // ¼ì²é½×ÊıÊÇ·ñÓĞĞ§£¨1-3£©
+            if (order >= 1 && order <= 3 && *endptr == L'\0') {
+                for (long i = 0; i < order; ++i) {
+                    token = wcstok_s(nullptr, L",", &context);
+                    if (token == nullptr) {
+                        // ÏµÊıÊıÁ¿²»×ã
+                        MessageBox(NULL, L"ÏµÊıÊıÁ¿²»×ã", L"´íÎó", MB_OK | MB_ICONERROR);
+                        return nullptr;
+                    }
+                    double coeff = std::wcstod(token, &endptr);
+
+                    if (*endptr == L'\0') {
+						coefficients[i] = coeff;
+                    }
+                    else {
+                        // ÏµÊı¸ñÊ½´íÎó£¬¿ÉÔÚ´Ë´¦Ìí¼Ó´íÎó´¦Àí
+                        MessageBox(NULL, L"ÏµÊı¸ñÊ½´íÎó", L"´íÎó", MB_OK | MB_ICONERROR);
+                        return nullptr;
+                     
+                    }
+                }
+            }
+            else {
+                // ½×ÊıÎŞĞ§
+                MessageBox(NULL, L"½×ÊıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+                return nullptr;
+
+            }
+        }
+        else {
+            // ÊäÈëÎª¿Õ
+            MessageBox(NULL, L"ÎŞÊäÈë", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        SpecialImage* res =new SpecialImage(EnDecoding::losslessPredictiveEnCoding(*img, coefficients)) ;
+
+        return res;
+    }
+    //ÎŞËğÔ¤²â½âÂë
+    static void* func11(void* image = nullptr, int index = 0) {
+        //Õû¸öÍ¼ÏñĞòÁĞ
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        //´ı´¦ÀíµÄÍ¼Ïñ
+        Image* img = (*images)[index];
+        if (img->getType() != Image::Special) {
+            MessageBox(NULL, L"Í¼Ïñ¸ñÊ½ÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+		SpecialImage* specialImg = static_cast<SpecialImage*>(img);
+
+        wchar_t sParams[50];
+        InputBox(sParams, 50, L"ÇëÊäÈëÔ¤²â½×ÊıºÍÏµÊı\n£¨¸ñÊ½£º½×Êı,ÏµÊı1,ÏµÊı2,ÏµÊı3...£©\nÀıÈç£º2,0.5,0.5\nÖ»Ö§³Ö1-3½×");
+        vector<double> coefficients(3, 0.0); //Ô¤²âÏµÊı
+
+        wchar_t* context = nullptr;
+        wchar_t* token = wcstok_s(sParams, L",", &context); // 
+        if (token != nullptr) {
+            wchar_t* endptr;
+            long order = wcstol(token, &endptr, 10);
+            // ¼ì²é½×ÊıÊÇ·ñÓĞĞ§£¨1-3£©
+            if (order >= 1 && order <= 3 && *endptr == L'\0') {
+                for (long i = 0; i < order; ++i) {
+                    token = wcstok_s(nullptr, L",", &context);
+                    if (token == nullptr) {
+                        // ÏµÊıÊıÁ¿²»×ã
+                        MessageBox(NULL, L"ÏµÊıÊıÁ¿²»×ã", L"´íÎó", MB_OK | MB_ICONERROR);
+                        return nullptr;
+                    }
+                    double coeff = std::wcstod(token, &endptr);
+
+                    if (*endptr == L'\0') {
+                        coefficients[i] = coeff;
+                    }
+                    else {
+                        // ÏµÊı¸ñÊ½´íÎó£¬¿ÉÔÚ´Ë´¦Ìí¼Ó´íÎó´¦Àí
+                        MessageBox(NULL, L"ÏµÊı¸ñÊ½´íÎó", L"´íÎó", MB_OK | MB_ICONERROR);
+                        return nullptr;
+
+                    }
+                }
+            }
+            else {
+                // ½×ÊıÎŞĞ§
+                MessageBox(NULL, L"½×ÊıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+                return nullptr;
+            }
+        }
+        else {
+            // ÊäÈëÎª¿Õ
+            MessageBox(NULL, L"ÎŞÊäÈë", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        Image* res = new Image(EnDecoding::losslessPredictiveDeCoding(*specialImg, coefficients));
+
+        return res;
+    }
+   
+    //¾ùÔÈÁ¿»¯£¨finished£©
+    static void* func12(void* image = nullptr, int index = 0) {
+        //Õû¸öÍ¼ÏñĞòÁĞ
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        //´ı´¦ÀíµÄÍ¼Ïñ
+        Image* img = (*images)[index];
+        if (img->getType() != Image::Gray) {
+            MessageBox(NULL, L"Í¼Ïñ¸ñÊ½ÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        wchar_t s[50];
+        InputBox(s, 50, L"ÇëÊäÈëÁ¿»¯ºóbit/pixel \nÖ»Ö§³Ö1-8½×");
+        int bitperpixel = _wtoi(s);
+        if (bitperpixel <= 0 || bitperpixel >= 9) {
+            MessageBox(NULL, L"ÎŞĞ§µÄ²ÎÊı", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        
+        Image* res = new Image(EnDecoding::uniformQuantization(*img, bitperpixel));
+
+        double error = Image::rootMeanSquareError(res, img);
+        cout << "¾ù·½¸ùÎó²î£º" << error << endl;
+        return res;
+    }
+    //IGS£¨finished£©
+    static void* func13(void* image = nullptr, int index = 0) {
+        //Õû¸öÍ¼ÏñĞòÁĞ
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        //´ı´¦ÀíµÄÍ¼Ïñ
+        Image* img = (*images)[index];
+        if (img->getType() != Image::Gray) {
+            MessageBox(NULL, L"Í¼Ïñ¸ñÊ½ÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* res = new Image(EnDecoding::IGSQuantization(*img));
+
+        double error = Image::rootMeanSquareError(res, img);
+        cout << "¾ù·½¸ùÎó²î£º" << error << endl;
+        return res;
+    }
+    
+    //DCT±ä»»
+    static void* func14(void* image = nullptr, int index = 0) {
+        //Õû¸öÍ¼ÏñĞòÁĞ
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        //´ı´¦ÀíµÄÍ¼Ïñ
+        Image* img = (*images)[index];
+        if (img->getType() != Image::Gray) {
+            MessageBox(NULL, L"Í¼Ïñ¸ñÊ½ÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        wchar_t s[50];
+        InputBox(s, 50, L"ÇëÊäÈë·Ö¿é´óĞ¡\n");
+        int size = _wtoi(s);
+        if (size <= 0) {
+            MessageBox(NULL, L"ÎŞĞ§µÄ²ÎÊı", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+		double keepRatio = 1.0;
+        wchar_t sParams[50] = { 0 };
+        InputBox(sParams, 50, L"ÇëÊäÈë±£Áô±ÈÀı\n¼´Ã¿¿éÖĞ±£ÁôµÄÏµÊı±ÈÀı\n²»ÊäÈë»òÊäÈë´íÎóÄ¬ÈÏÎª1.0");
+        // ¼ì²éÓÃ»§ÊÇ·ñÊäÈëÁËÄÚÈİ£¨·Ç¿Õ×Ö·û´®£©
+        if (sParams[0] != L'\0') {  // ÈôµÚÒ»¸ö×Ö·û²»ÊÇ½áÊø·û£¬ËµÃ÷ÓĞÊäÈë
+            wchar_t* endPtr = nullptr;  // ÓÃÓÚ½ÓÊÕ×ª»»½áÊøµÄÎ»ÖÃ
+            double tempRatio = wcstod(sParams, &endPtr);  // ¿í×Ö·û×ª double
+
+            // ÑéÖ¤ÊäÈëÊÇ·ñÓĞĞ§£¨ÅÅ³ı¿ÕÊäÈë»ò·ÇÊı×Ö£©
+            if (endPtr != sParams && tempRatio >= 0.0 && tempRatio <= 1.0) {  // Èô×ª»»³É¹¦£¨ÖÁÉÙ½âÎöµ½Ò»¸öÊı×Ö£©
+                keepRatio = tempRatio;
+            }
+            else {
+                keepRatio = 1.0; // ÈôÊäÈëÎŞĞ§£¨Èç·ÇÊı×Ö£©£¬¿É±£³ÖÄ¬ÈÏÖµ 1.0
+            }
+           
+
+        }
+        SpecialImage* dimage = new SpecialImage(EnDecoding::dct(*img, size, keepRatio));
+        
+		cout << "DCT±ä»»Íê³É£¬±£Áô±ÈÀı£º" << keepRatio << endl;
+		cout << "Éú³ÉÍ¼Ïñ´óĞ¡:  " << dimage->getWidth() << "x" << dimage->getHeight() << endl;
+        
+        return dimage;
+    }
+    //·´DCT±ä»»
+    static void* func15(void* image = nullptr, int index = 0) {
+        //Õû¸öÍ¼ÏñĞòÁĞ
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        if (images->size() == 0) {
+            MessageBox(NULL, L"Ã»ÓĞÍ¼Ïñ¿ÉÒÔ´¦Àí", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        if (index < 0 || index >= images->size()) {
+            MessageBox(NULL, L"Í¼ÏñË÷ÒıÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+        //´ı´¦ÀíµÄÍ¼Ïñ
+        Image* img = static_cast<Image*>((*images)[index]);
+
+        if (img->getType() != Image::Special) {
+            MessageBox(NULL, L"Í¼Ïñ¸ñÊ½ÎŞĞ§", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+		SpecialImage* simage = static_cast<SpecialImage*>(img);
+
+        wchar_t s[50];
+        InputBox(s, 50, L"ÇëÊäÈë·Ö¿é´óĞ¡\n");
+        int size = _wtoi(s);
+        if (size <= 0) {
+            MessageBox(NULL, L"ÎŞĞ§µÄ²ÎÊı", L"´íÎó", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        Image* res = new Image(EnDecoding::iverseDct(*simage, size));
+
+        cout << "DCT·´±ä»»Íê³É " << endl;
+        cout << "»¹Ô­Í¼Ïñ´óĞ¡:  " << res->getwidth() << "x" << res->getheight() << endl;
+        return res;
+    }
+   
 };
 
 
-// å®šä¹‰Widgetç±»ï¼Œè¡¨ç¤ºä¸€ä¸ªç®€å•çš„å›¾å½¢ç”¨æˆ·ç•Œé¢
+// ¶¨ÒåWidgetÀà£¬±íÊ¾Ò»¸ö¼òµ¥µÄÍ¼ĞÎÓÃ»§½çÃæ
 class Widget
 {
 private:
-    int width; // å®½åº¦
-    int height; // é«˜åº¦
+    int width; // ¿í¶È
+    int height; // ¸ß¶È
+	int moduleIndex = 0; // µ±Ç°Ñ¡ÖĞµÄÄ£¿éË÷Òı
+	vector<vector<Button*>> modules; // ´æ´¢²»Í¬Ñ¡Ïî¿¨¶ÔÓ¦µÄ°´Å¥£¬¼°²»Í¬¹¦ÄÜÄ£¿é¶ÔÓ¦µÄ°´Å¥
+    vector<Button*> buttons; // ´æ´¢µ±Ç°ÏÔÊ¾Ò³ÃæÉÏµÄ°´Å¥
+	vector<Tab*> tabs; // ´æ´¢Ò³ÃæÉÏµÄÑ¡Ïî¿¨
+    
+	vector<TextureButton*> tButtons; // ´æ´¢Ò³ÃæÉÏµÄÎÆÀí°´Å¥
+   
+	Button*  Dbutton; // É¾³ıµ±Ç°Õ¹Ê¾µÄÍ¼Æ¬µÄ°´Å¥
+    vector<Image*>images;//ÒªÕ¹Ê¾µÄÍ¼Æ¬ĞòÁĞ
+	int imageIndex = 0;//µ±Ç°Õ¹Ê¾µÄÍ¼Æ¬Ë÷Òı
 
-    int moduleIndex = 0; // å½“å‰é€‰ä¸­çš„æ¨¡å—ç´¢å¼•
-
-    vector<vector<Button*>> modules; // å­˜å‚¨ä¸åŒé€‰é¡¹å¡å¯¹åº”çš„æŒ‰é’®ï¼ŒåŠä¸åŒåŠŸèƒ½æ¨¡å—å¯¹åº”çš„æŒ‰é’®
-
-    vector<Button*> buttons; // å­˜å‚¨å½“å‰æ˜¾ç¤ºé¡µé¢ä¸Šçš„æŒ‰é’®
-    vector<Tab*> tabs; // å­˜å‚¨é¡µé¢ä¸Šçš„é€‰é¡¹å¡
-
-    vector<TextureButton*> tButtons; // å­˜å‚¨é¡µé¢ä¸Šçš„çº¹ç†æŒ‰é’®
-
-    Button* Dbutton; // åˆ é™¤å½“å‰å±•ç¤ºçš„å›¾ç‰‡çš„æŒ‰é’®
-
-    vector<Image*>images;//è¦å±•ç¤ºçš„å›¾ç‰‡
-    int imageIndex = 0;//å½“å‰å±•ç¤ºçš„å›¾ç‰‡ç´¢å¼•
-
-
-    // ç»™æŸä¸€ä¸ªæ¨¡å—ä¸Šæ·»åŠ ä¸€ä¸ªæŒ‰é’®
+    // ¸øÄ³Ò»¸öÄ£¿éÉÏÌí¼ÓÒ»¸ö°´Å¥
     void addButton(Button* button, int module)
     {
         modules[module].push_back(button);
     }
-    // åœ¨é¡µé¢ä¸Šæ·»åŠ ä¸€ä¸ªé€‰é¡¹å¡
+    // ÔÚÒ³ÃæÉÏÌí¼ÓÒ»¸öÑ¡Ïî¿¨
     void addTab(Tab* tab)
     {
         tabs.push_back(tab);
-    }
-
-
-    // å¤„ç†é¼ æ ‡ç‚¹å‡»äº‹ä»¶
+	}
+ 
+    // ´¦ÀíÊó±êµã»÷ÊÂ¼ş
     void mouseClick(int mouseX, int mouseY)
     {
-        Dbutton->checkClick(mouseX, mouseY, &images); // æ£€æŸ¥åˆ é™¤æŒ‰é’®æ˜¯å¦è¢«ç‚¹å‡»
-
-        for (TextureButton* tButton : tButtons)
+		
+        for(TextureButton* tButton : tButtons)
         {
             if (tButton->checkClick(mouseX, mouseY)) {
                 return;
-                // å¦‚æœç‚¹å‡»äº†ä¸€ä¸ªé€‰æ‹©æŒ‰é’®ï¼Œåœæ­¢æ£€æŸ¥å…¶ä»–é€‰æ‹©æŒ‰é’®
+                // Èç¹ûµã»÷ÁËÒ»¸öÑ¡Ôñ°´Å¥£¬Í£Ö¹¼ì²éÆäËûÑ¡Ôñ°´Å¥
             }
         }
 
-        for (Button* button : buttons)
-        {
-            Image* res = (Image*)(button->checkClick(mouseX, mouseY, &images));
-            if (res != nullptr)
+        for(Button* button : buttons)
+        {               
+            Image* res = (Image*)(button->checkClick(mouseX, mouseY,&images,imageIndex));
+            if (res!=nullptr)
             {
                 images.push_back(res);
                 imageIndex = images.size() - 1;
-                // æ›´æ–°å½“å‰å±•ç¤ºçš„å›¾ç‰‡ç´¢å¼•ä¸ºæœ€æ–°æ·»åŠ çš„å›¾ç‰‡
+                // ¸üĞÂµ±Ç°Õ¹Ê¾µÄÍ¼Æ¬Ë÷ÒıÎª×îĞÂÌí¼ÓµÄÍ¼Æ¬
                 return;
-
             }
-
-        }
+		}
+        Dbutton->checkClick(mouseX, mouseY, &images); // ¼ì²éÉ¾³ı°´Å¥ÊÇ·ñ±»µã»÷
 
         for (Tab* tab : tabs)
         {
             if (tab->checkClick(mouseX, mouseY))
             {
-                return; // å¦‚æœç‚¹å‡»äº†ä¸€ä¸ªé€‰é¡¹å¡ï¼Œåœæ­¢æ£€æŸ¥å…¶ä»–é€‰é¡¹å¡
+                return; // Èç¹ûµã»÷ÁËÒ»¸öÑ¡Ïî¿¨£¬Í£Ö¹¼ì²éÆäËûÑ¡Ïî¿¨
             }
 
         }
 
     }
 
-    // å¤„ç†é¼ æ ‡ç§»åŠ¨äº‹ä»¶
+    // ´¦ÀíÊó±êÒÆ¶¯ÊÂ¼ş
     void mouseMove(int mouseX, int mouseY)
     {
-        Dbutton->checkMouseOver(mouseX, mouseY); // æ£€æŸ¥åˆ é™¤æŒ‰é’®æ˜¯å¦æ‚¬åœ  
+        Dbutton->checkMouseOver(mouseX, mouseY); // ¼ì²éÉ¾³ı°´Å¥ÊÇ·ñĞüÍ£  
         for (TextureButton* tButton : tButtons)
         {
             if (tButton->checkMouseOver(mouseX, mouseY)) {
                 return;
-                // å¦‚æœæ‚¬åœåœ¨ä¸€ä¸ªé€‰æ‹©æŒ‰é’®ä¸Šï¼Œåœæ­¢æ£€æŸ¥å…¶ä»–é€‰æ‹©æŒ‰é’®
+                // Èç¹ûĞüÍ£ÔÚÒ»¸öÑ¡Ôñ°´Å¥ÉÏ£¬Í£Ö¹¼ì²éÆäËûÑ¡Ôñ°´Å¥
             }
         }
         for (Button* button : buttons)
@@ -615,163 +1536,174 @@ private:
             if (button->checkMouseOver(mouseX, mouseY))
             {
                 return;
-                // å¦‚æœæ‚¬åœåœ¨ä¸€ä¸ªæŒ‰é’®ï¼Œåœæ­¢æ£€æŸ¥å…¶ä»–
+                // Èç¹ûĞüÍ£ÔÚÒ»¸ö°´Å¥£¬Í£Ö¹¼ì²éÆäËû
             }
         }
         for (Tab* tab : tabs)
         {
             if (tab->checkMouseOver(mouseX, mouseY))
             {
-                return; // å¦‚æœç‚¹å‡»äº†ä¸€ä¸ªé€‰é¡¹å¡ï¼Œåœæ­¢æ£€æŸ¥å…¶ä»–é€‰é¡¹å¡
+                return; // Èç¹ûµã»÷ÁËÒ»¸öÑ¡Ïî¿¨£¬Í£Ö¹¼ì²éÆäËûÑ¡Ïî¿¨
             }
 
         }
     }
 
-    // ç»˜åˆ¶å½“å‰é¡µé¢çš„æŒ‰é’®ã€é€‰æ‹©æŒ‰é’®å’Œé€‰é¡¹å¡,ä»¥åŠå›¾åƒ
+    // »æÖÆµ±Ç°Ò³ÃæµÄ°´Å¥¡¢Ñ¡Ôñ°´Å¥ºÍÑ¡Ïî¿¨,ÒÔ¼°Í¼Ïñ
     void draw()
     {
-        // ç»˜åˆ¶å›¾åƒ
+        // »æÖÆÍ¼Ïñ
         if (!images.empty()) {
+            
+            IMAGE img;
+            if (images[imageIndex]->getType() == Image::Special) {
+                SpecialImage* simage = static_cast<SpecialImage*>(images[imageIndex]);
 
-            IMAGE img = (images[imageIndex])->convertToEasyXImage(); // æ˜¾ç¤ºæœ€æ–°çš„å›¾åƒ
-
-            int x = buttons[0]->getX() + buttons[0]->getWidth() + 20;
-            // å›¾åƒæ˜¾ç¤ºåœ¨æŒ‰é’®å³ä¾§ï¼Œç•™å‡º20åƒç´ çš„é—´è·
+                Image tmp = EnDecoding::linearTransformTo0_255(*simage);
+                img = tmp.convertToEasyXImage();
+            }
+            else {
+                img = (images[imageIndex])->convertToEasyXImage();// ÏÔÊ¾×îĞÂµÄÍ¼Ïñ
+            }
+           
+            int x = buttons[0]->getX() + buttons[0]->getWidth() + 20; 
+            // Í¼ÏñÏÔÊ¾ÔÚ°´Å¥ÓÒ²à£¬Áô³ö20ÏñËØµÄ¼ä¾à
             int y = height / 7;
-            // è®¾ç½®æœ€å¤§æ˜¾ç¤ºå°ºå¯¸ï¼ˆå¯ä»¥æ ¹æ®éœ€è¦è°ƒæ•´ï¼‰
-            int maxDisplayWidth = tabs[0]->getX() - x - 20;  // å³ä¾§ä¸é€‰é¡¹å¡ç•™20åƒç´ è¾¹è·
-            int maxDisplayHeight = height - height * 2 / 7; // åº•éƒ¨ç•™20åƒç´ è¾¹è·
+            // ÉèÖÃ×î´óÏÔÊ¾³ß´ç£¨¿ÉÒÔ¸ù¾İĞèÒªµ÷Õû£©
+            int maxDisplayWidth = tabs[0]->getX() - x - 20;  // ÓÒ²àÓëÑ¡Ïî¿¨Áô20ÏñËØ±ß¾à
+            int maxDisplayHeight = height - height * 2 / 7; // µ×²¿Áô20ÏñËØ±ß¾à
 
-            // ç»˜åˆ¶å›¾åƒèƒŒæ™¯ï¼ˆå¯é€‰ï¼Œç”¨äºåŒºåˆ†å›¾åƒåŒºåŸŸï¼‰
-            setfillcolor(RGB(240, 240, 240));  // æµ…ç°è‰²èƒŒæ™¯
+            // »æÖÆÍ¼Ïñ±³¾°£¨¿ÉÑ¡£¬ÓÃÓÚÇø·ÖÍ¼ÏñÇøÓò£©
+            setfillcolor(RGB(240, 240, 240));  // Ç³»ÒÉ«±³¾°
             solidrectangle(x, y, x + maxDisplayWidth, y + maxDisplayHeight);
 
-            // ç»˜åˆ¶å›¾åƒè¾¹æ¡†
+            // »æÖÆÍ¼Ïñ±ß¿ò
             setlinecolor(LIGHTGRAY);
             rectangle(x, y, x + maxDisplayWidth, y + maxDisplayHeight);
 
-            // è·å–å›¾åƒåŸå§‹å°ºå¯¸
+            // »ñÈ¡Í¼ÏñÔ­Ê¼³ß´ç
             int imgWidth = img.getwidth();
             int imgHeight = img.getheight();
 
-            // è®¡ç®—ç­‰æ¯”ä¾‹ç¼©æ”¾å› å­
+            // ¼ÆËãµÈ±ÈÀıËõ·ÅÒò×Ó
             double scaleX = (double)maxDisplayWidth / imgWidth;
             double scaleY = (double)maxDisplayHeight / imgHeight;
-            double scale = min(scaleX, scaleY);  // é€‰æ‹©è¾ƒå°çš„ç¼©æ”¾å› å­ï¼Œç¡®ä¿å®Œæ•´æ˜¾ç¤º
+            double scale = min(scaleX, scaleY);  // Ñ¡Ôñ½ÏĞ¡µÄËõ·ÅÒò×Ó£¬È·±£ÍêÕûÏÔÊ¾
 
-            // å¦‚æœå›¾åƒå·²ç»å°äºæ˜¾ç¤ºåŒºåŸŸï¼Œåˆ™ä¸ç¼©æ”¾
+            // Èç¹ûÍ¼ÏñÒÑ¾­Ğ¡ÓÚÏÔÊ¾ÇøÓò£¬Ôò²»Ëõ·Å
             if (scale >= 1.0) {
                 scale = 1.0;
             }
 
-            // è®¡ç®—ç¼©æ”¾åçš„å°ºå¯¸
+            // ¼ÆËãËõ·ÅºóµÄ³ß´ç
             int scaledWidth = (int)(imgWidth * scale);
             int scaledHeight = (int)(imgHeight * scale);
 
 
-            //IMAGE* res=Image::resizeImageBicubic(&img, scaledWidth, scaledHeight); // ä½¿ç”¨åŒä¸‰æ¬¡æ’å€¼ç¼©æ”¾å›¾åƒ
-            IMAGE res = Image::resize(&img, scaledWidth, scaledHeight); // ä½¿ç”¨ç®€å•ç¼©æ”¾æ–¹æ³•ç¼©æ”¾å›¾åƒ
+            //IMAGE* res=Image::resizeImageBicubic(&img, scaledWidth, scaledHeight); // Ê¹ÓÃË«Èı´Î²åÖµËõ·ÅÍ¼Ïñ
+            IMAGE res = Image::resize(&img, scaledWidth, scaledHeight); // Ê¹ÓÃ¼òµ¥Ëõ·Å·½·¨Ëõ·ÅÍ¼Ïñ
 
-            // è®¡ç®—å±…ä¸­æ˜¾ç¤ºçš„ä½ç½®ï¼ˆåœ¨æŒ‰é’®å³ä¾§åŒºåŸŸå†…ï¼‰
+            // ¼ÆËã¾ÓÖĞÏÔÊ¾µÄÎ»ÖÃ£¨ÔÚ°´Å¥ÓÒ²àÇøÓòÄÚ£©
             int centeredX = x + (maxDisplayWidth - scaledWidth) / 2;
             int centeredY = y + (maxDisplayHeight - scaledHeight) / 2;
-            putimage(centeredX, centeredY, &res); // åœ¨æŒ‡å®šä½ç½®ç»˜åˆ¶å›¾åƒ
+            putimage(centeredX, centeredY, &res); // ÔÚÖ¸¶¨Î»ÖÃ»æÖÆÍ¼Ïñ
 
 
-            // æç¤ºä¿¡æ¯ï¼šå½“å‰å±•ç¤ºçš„å›¾åƒç´¢å¼•å’Œæ€»å›¾åƒæ•°é‡
+            // ÌáÊ¾ĞÅÏ¢£ºµ±Ç°Õ¹Ê¾µÄÍ¼ÏñË÷ÒıºÍ×ÜÍ¼ÏñÊıÁ¿
             settextcolor(BLACK);
-            settextstyle(15, 0, _T("å®‹ä½“"));
+            settextstyle(15, 0, _T("ËÎÌå"));
 
-            //æ–‡æœ¬å³ä¾§å¯¹é½æ˜¾ç¤º
-            wstring text = L"å½“å‰å›¾åƒ: " + to_wstring(imageIndex + 1) + L"/" + to_wstring(images.size());
+            //ÎÄ±¾ÓÒ²à¶ÔÆëÏÔÊ¾
+            wstring text = L"µ±Ç°Í¼Ïñ: " + to_wstring(imageIndex + 1) + L"/" + to_wstring(images.size());
             int textX = x + maxDisplayWidth - textwidth(text.c_str());
-            // å³ä¾§å¯¹é½ï¼Œç•™10åƒç´ è¾¹è·
-            int textY = y + maxDisplayHeight - textheight(text.c_str()); // å›¾åƒä¸‹æ–¹ï¼Œç•™10åƒç´ è¾¹è·
+            // ÓÒ²à¶ÔÆë£¬Áô10ÏñËØ±ß¾à
+            int textY = y + maxDisplayHeight - textheight(text.c_str()); // Í¼ÏñÏÂ·½£¬Áô10ÏñËØ±ß¾à
 
             outtextxy(textX, textY, text.c_str());
 
 
 
         }
-        // ç»˜åˆ¶æŒ‰é’®å’Œé€‰é¡¹å¡
-        Dbutton->draw(); // ç»˜åˆ¶åˆ é™¤å›¾åƒçš„æŒ‰é’®
+        // »æÖÆ°´Å¥ºÍÑ¡Ïî¿¨
+        Dbutton->draw(); // »æÖÆÉ¾³ıÍ¼ÏñµÄ°´Å¥
         for (TextureButton* tButton : tButtons)
         {
-            tButton->draw(); // ç»˜åˆ¶å½“å‰é¡µé¢ä¸Šçš„æ‰€æœ‰é€‰æ‹©æŒ‰é’®
+            tButton->draw(); // »æÖÆµ±Ç°Ò³ÃæÉÏµÄËùÓĞÑ¡Ôñ°´Å¥
         }
 
         for (Button* button : buttons)
         {
-            button->draw(); // ç»˜åˆ¶å½“å‰é¡µé¢ä¸Šçš„æ‰€æœ‰æŒ‰é’®
+            button->draw(); // »æÖÆµ±Ç°Ò³ÃæÉÏµÄËùÓĞ°´Å¥
         }
         for (Tab* tab : tabs)
         {
-            tab->draw(); // æ˜¾ç¤ºå½“å‰é¡µé¢ä¸Šçš„æ‰€æœ‰é€‰é¡¹å¡
+            tab->draw(); // ÏÔÊ¾µ±Ç°Ò³ÃæÉÏµÄËùÓĞÑ¡Ïî¿¨
         }
     }
-
-
-    // ç»˜åˆ¶ä¸»èœå•
+      
+    
+    // »æÖÆÖ÷²Ëµ¥
     void drawMainMenu() {
 
         cleardevice();
 
-        // æ ‡é¢˜
-        //å±…ä¸­æ˜¾ç¤ºæ–‡æœ¬
+        // ±êÌâ
+        //¾ÓÖĞÏÔÊ¾ÎÄ±¾
         LOGFONT f;
-        gettextstyle(&f);						// è·å–å½“å‰å­—ä½“è®¾ç½®
-        f.lfHeight = 48;						// è®¾ç½®å­—ä½“é«˜åº¦ä¸º 48
-        _tcscpy_s(f.lfFaceName, _T("é»‘ä½“"));      // è®¾ç½®å­—ä½“ä¸ºâ€œé»‘ä½“â€
-        f.lfQuality = ANTIALIASED_QUALITY;		// è®¾ç½®è¾“å‡ºæ•ˆæœä¸ºæŠ—é”¯é½¿  
-        settextstyle(&f);						// è®¾ç½®å­—ä½“æ ·å¼
+        gettextstyle(&f);						// »ñÈ¡µ±Ç°×ÖÌåÉèÖÃ
+        f.lfHeight = 48;						// ÉèÖÃ×ÖÌå¸ß¶ÈÎª 48
+        _tcscpy_s(f.lfFaceName, _T("ºÚÌå"));      // ÉèÖÃ×ÖÌåÎª¡°ºÚÌå¡±
+        f.lfQuality = ANTIALIASED_QUALITY;		// ÉèÖÃÊä³öĞ§¹ûÎª¿¹¾â³İ  
+        settextstyle(&f);						// ÉèÖÃ×ÖÌåÑùÊ½
 
 
-        int textX = (width - textwidth(L"å›¾åƒå¤„ç†å®éªŒ - ä¸»èœå•")) / 2; // è®¡ç®—æ–‡æœ¬åœ¨æŒ‰é’®ä¸­å¤®çš„xåæ ‡
+        int textX = (width - textwidth(L"Í¼Ïñ´¦ÀíÊµÑé - Ö÷²Ëµ¥")) / 2; // ¼ÆËãÎÄ±¾ÔÚ°´Å¥ÖĞÑëµÄx×ø±ê
 
         int textY = height / 20;
         settextcolor(BLACK);
-        outtextxy(textX, textY, L"å›¾åƒå¤„ç†å®éªŒ - ä¸»èœå•");
+        outtextxy(textX, textY, L"Í¼Ïñ´¦ÀíÊµÑé - Ö÷²Ëµ¥");
 
         draw();
 
-        // æç¤ºä¿¡æ¯
+        // ÌáÊ¾ĞÅÏ¢
         settextcolor(BLACK);
-        settextstyle(20, 0, _T("å®‹ä½“"));
-        textX = (width - textwidth(L"ç‚¹å‡»å³ä¾§é€‰æ‹©åŠŸèƒ½æ¨¡å—ï¼Œå·¦ä¾§é€‰æ‹©å…·ä½“åŠŸèƒ½")) / 2;
+        settextstyle(20, 0, _T("ËÎÌå"));
+        textX = (width - textwidth(L"µã»÷ÓÒ²àÑ¡Ôñ¹¦ÄÜÄ£¿é£¬×ó²àÑ¡Ôñ¾ßÌå¹¦ÄÜ")) / 2;
         textY = height * 9 / 10;
-        outtextxy(textX, textY, L"ç‚¹å‡»å³ä¾§é€‰æ‹©åŠŸèƒ½æ¨¡å—ï¼Œå·¦ä¾§é€‰æ‹©å…·ä½“åŠŸèƒ½");
+        outtextxy(textX, textY, L"µã»÷ÓÒ²àÑ¡Ôñ¹¦ÄÜÄ£¿é£¬×ó²àÑ¡Ôñ¾ßÌå¹¦ÄÜ");
 
     }
 
 
-    // åˆå§‹åŒ–ä¸åŒæ¨¡å—å¯¹åº”çš„æŒ‰é’®
+    // ³õÊ¼»¯²»Í¬Ä£¿é¶ÔÓ¦µÄ°´Å¥
     void initModuleButtons() {
 
-        int buttoncounts[] = { 2, 2, 2, 3, 3 }; //æ¯ä¸ªæ¨¡å—çš„æŒ‰é’®æ•°é‡
+		int buttoncounts[] = { 2, 2, 2, 3, 6 }; //Ã¿¸öÄ£¿éµÄ°´Å¥ÊıÁ¿
         Functions f; int k = 0;
         for (int j = 0; j < modules.size(); j++)
         {
-            // --- æŒ‰é’®å¸ƒå±€é€»è¾‘ ---
+            // --- °´Å¥²¼¾ÖÂß¼­ ---
             int buttonCount = buttoncounts[j];
             int buttonWidth = width / 10;
             int buttonHeight = buttonWidth / 2;
-            int buttonSpacing = 20; // æŒ‰é’®ä¹‹é—´çš„å‚ç›´é—´è·
+            int buttonSpacing = 20; // °´Å¥Ö®¼äµÄ´¹Ö±¼ä¾à
 
-            // è®¡ç®—æŒ‰é’®æ€»é«˜åº¦ï¼ˆæ‰€æœ‰æŒ‰é’® + é—´è·ï¼‰
+            // ¼ÆËã°´Å¥×Ü¸ß¶È£¨ËùÓĞ°´Å¥ + ¼ä¾à£©
             int totalButtonsHeight = buttonCount * buttonHeight + (buttonCount - 1) * buttonSpacing;
 
-            // è®©æŒ‰é’®åŒºåŸŸåœ¨å‚ç›´æ–¹å‘ä¸Šå±…ä¸­
+            // ÈÃ°´Å¥ÇøÓòÔÚ´¹Ö±·½ÏòÉÏ¾ÓÖĞ
             int startY = (height - totalButtonsHeight) / 2;
 
-            // è®©æŒ‰é’®åœ¨æ°´å¹³æ–¹å‘ä¸Šå¤„äºçª—å£å·¦è¾¹ 1/8 å¤„ï¼ˆç•™å‡ºç©ºé—´ç»™Tabï¼‰
-            int startX = width / 8 - buttonWidth / 2; // æ”¾åœ¨çª—å£å·¦è¾¹ 1/8 å¤„
+            // ÈÃ°´Å¥ÔÚË®Æ½·½ÏòÉÏ´¦ÓÚ´°¿Ú×ó±ß 1/8 ´¦£¨Áô³ö¿Õ¼ä¸øTab£©
+            int startX = width / 8 - buttonWidth / 2; // ·ÅÔÚ´°¿Ú×ó±ß 1/8 ´¦
 
             for (int i = 0; i < buttonCount; i++)
             {
                 Button* button = new Button(startX, startY + i * (buttonHeight + buttonSpacing), buttonWidth, buttonHeight, f.name[k], f.onClick[k]);
+              
                 ++k;
                 addButton(button, j);
+               
             }
         }
     }
@@ -781,6 +1713,8 @@ public:
         :width(width), height(height)
     {
         modules.resize(5);
+        Dbutton = nullptr;
+
     }
 
     ~Widget() {
@@ -801,34 +1735,34 @@ public:
         }
     }
 
-    // åˆå§‹åŒ–æ§ä»¶ï¼Œåˆ›å»ºå›¾å½¢ç¯å¢ƒï¼Œè®¾ç½®é¡µé¢å’ŒæŒ‰é’®
+    // ³õÊ¼»¯¿Ø¼ş£¬´´½¨Í¼ĞÎ»·¾³£¬ÉèÖÃÒ³ÃæºÍ°´Å¥
     void init()
     {
         initgraph(width, height, EX_SHOWCONSOLE);
         setbkcolor(WHITE);
         initModuleButtons();
 
-        //////////////åˆå§‹åŒ–é€‰é¡¹å¡//////////////////////////////////////
+        //////////////³õÊ¼»¯Ñ¡Ïî¿¨//////////////////////////////////////
 
-        int initwidth = width / 10; // é€‰é¡¹å¡å®½åº¦
-        int initheight = initwidth / 5; // é€‰é¡¹å¡é«˜åº¦
-        // è®©é€‰é¡¹å¡åœ¨æ°´å¹³æ–¹å‘ä¸Šå¤„äºçª—å£å³è¾¹ 1/8 å¤„
-        // æ”¾åœ¨çª—å£å³è¾¹ 1/8 å¤„
-        int initx = (width * 7.0) / 8.0 - initwidth / 2.0; // é€‰é¡¹å¡åˆå§‹xåæ ‡ 
-        int inity = (height - initheight) / 2; // é€‰é¡¹å¡yåæ ‡     
-        Tab* tab = new Tab(5, { L"æ–‡ä»¶å¤„ç†æ¨¡å—", L"è£å‰ªåˆ‡å‰²æ¨¡å—", L"æ¨¡å¼è½¬æ¢æ¨¡å—", L"å›¾åƒå¢å¼ºæ¨¡å—" ,L"å›¾åƒç¼–ç æ¨¡å—" }, initx, inity, initwidth, initheight);
+        int initwidth = width / 10; // Ñ¡Ïî¿¨¿í¶È
+        int initheight = initwidth / 5; // Ñ¡Ïî¿¨¸ß¶È
+        // ÈÃÑ¡Ïî¿¨ÔÚË®Æ½·½ÏòÉÏ´¦ÓÚ´°¿ÚÓÒ±ß 1/8 ´¦
+        // ·ÅÔÚ´°¿ÚÓÒ±ß 1/8 ´¦
+        int initx = (width * 7.0) / 8.0 - initwidth / 2.0; // Ñ¡Ïî¿¨³õÊ¼x×ø±ê 
+        int inity = (height - initheight) / 2; // Ñ¡Ïî¿¨y×ø±ê     
+        Tab* tab = new Tab(5, { L"ÎÄ¼ş´¦ÀíÄ£¿é", L"²Ã¼ôÇĞ¸îÄ£¿é", L"Ä£Ê½×ª»»Ä£¿é", L"Í¼ÏñÔöÇ¿Ä£¿é" ,L"Í¼Ïñ±àÂëÄ£¿é" }, initx, inity, initwidth, initheight);
         addTab(tab);
         buttons = modules[moduleIndex];
 
-        /////////////////å›¾åƒåˆ é™¤æŒ‰é’®////////////////////////////////////
-
-        Dbutton = new Button(initx, inity + initheight * 3, initwidth, initheight, L"åˆ é™¤å›¾åƒ", [this](void* img) {
+        /////////////////Í¼ÏñÉ¾³ı°´Å¥////////////////////////////////////
+        
+        Dbutton= new Button(initx, inity + initheight * 6, initwidth, initheight, L"É¾³ıÍ¼Ïñ", [this](void* img,int index) {
 
             if (!images.empty()) {
                 if (0 <= imageIndex && imageIndex < images.size()) {
                     images.erase(images.begin() + imageIndex);
                     if (imageIndex >= images.size()) {
-                        imageIndex = images.size() - 1; // æ›´æ–°å½“å‰å±•ç¤ºçš„å›¾ç‰‡ç´¢å¼•ä¸ºæœ€åä¸€å¼ å›¾åƒ
+                        imageIndex = images.size() - 1; // ¸üĞÂµ±Ç°Õ¹Ê¾µÄÍ¼Æ¬Ë÷ÒıÎª×îºóÒ»ÕÅÍ¼Ïñ
                     }
 
                 }
@@ -836,17 +1770,17 @@ public:
             return nullptr;
             });
 
-        ///////////////////////å›¾åƒé€‰æ‹©æŒ‰é’®////////////////////////////////
+        ///////////////////////Í¼ÏñÑ¡Ôñ°´Å¥////////////////////////////////
 
         IMAGE temp;
-        loadimage(&temp, L"next.png"); // åŠ è½½å›¾åƒä»¥è·å–å…¶å°ºå¯¸
-        float scale = (float)((initwidth * 1.0) / temp.getwidth()); // è®¡ç®—ç¼©æ”¾æ¯”ä¾‹
+        loadimage(&temp, L"next.png"); // ¼ÓÔØÍ¼ÏñÒÔ»ñÈ¡Æä³ß´ç
+        float scale = (float)((initwidth * 1.0) / temp.getwidth()); // ¼ÆËãËõ·Å±ÈÀı
 
         IMAGE* next = new IMAGE();
         loadimage(next, L"next.png", temp.getwidth() * scale, temp.getheight() * scale);
 
-        loadimage(&temp, L"prev.png"); // åŠ è½½å›¾åƒä»¥è·å–å…¶å°ºå¯¸
-        scale = (float)((initwidth * 1.0) / temp.getwidth()); // è®¡ç®—ç¼©æ”¾æ¯”ä¾‹
+        loadimage(&temp, L"prev.png"); // ¼ÓÔØÍ¼ÏñÒÔ»ñÈ¡Æä³ß´ç
+        scale = (float)((initwidth * 1.0) / temp.getwidth()); // ¼ÆËãËõ·Å±ÈÀı
 
         IMAGE* prev = new IMAGE();
         loadimage(prev, L"prev.png", temp.getwidth() * scale, temp.getheight() * scale);
@@ -861,16 +1795,16 @@ public:
         tButtons.push_back(prevButton);
 
 
-        nextButton->setOnclick([this](void* img) {
+        nextButton->setOnclick([this](void* img,int index) {
             if (!images.empty()) {
-                imageIndex = (imageIndex + 1) % images.size(); // æ˜¾ç¤ºä¸‹ä¸€å¼ å›¾åƒ
+                imageIndex = (imageIndex + 1) % images.size(); // ÏÔÊ¾ÏÂÒ»ÕÅÍ¼Ïñ
             }
             return nullptr;
             });
 
-        prevButton->setOnclick([this](void* img) {
+        prevButton->setOnclick([this](void* img,int index) {
             if (!images.empty()) {
-                imageIndex = (imageIndex - 1 + images.size()) % images.size(); // æ˜¾ç¤ºä¸Šä¸€å¼ å›¾åƒ
+                imageIndex = (imageIndex - 1 + images.size()) % images.size(); // ÏÔÊ¾ÉÏÒ»ÕÅÍ¼Ïñ
             }
             return nullptr;
             });
@@ -879,48 +1813,48 @@ public:
 
     }
 
-    // è¿è¡Œï¼Œè¿›å…¥æ¶ˆæ¯å¾ªç¯
+    // ÔËĞĞ£¬½øÈëÏûÏ¢Ñ­»·
     void run()
     {
         ExMessage msg;
-        BeginBatchDraw(); // å¼€å§‹æ‰¹é‡ç»˜åˆ¶
+        BeginBatchDraw(); // ¿ªÊ¼ÅúÁ¿»æÖÆ
 
         while (true)
         {
-            moduleIndex = tabs[0]->returnSelectedOption(); // è·å–å½“å‰é€‰ä¸­çš„é€‰é¡¹å¡ç´¢å¼•ï¼Œæ ¹æ®ç´¢å¼•åˆ‡æ¢æ˜¾ç¤ºçš„æŒ‰é’®
+            moduleIndex = tabs[0]->returnSelectedOption(); // »ñÈ¡µ±Ç°Ñ¡ÖĞµÄÑ¡Ïî¿¨Ë÷Òı£¬¸ù¾İË÷ÒıÇĞ»»ÏÔÊ¾µÄ°´Å¥
             buttons = modules[moduleIndex];
-            while (peekmessage(&msg)) // æ£€æŸ¥æ˜¯å¦æœ‰æ¶ˆæ¯
+            while (peekmessage(&msg)) // ¼ì²éÊÇ·ñÓĞÏûÏ¢
             {
-                int mouseX = msg.x; // è·å–é¼ æ ‡xåæ ‡
-                int mouseY = msg.y; // è·å–é¼ æ ‡yåæ ‡
+                int mouseX = msg.x; // »ñÈ¡Êó±êx×ø±ê
+                int mouseY = msg.y; // »ñÈ¡Êó±êy×ø±ê
 
                 switch (msg.message)
                 {
-                case WM_LBUTTONDOWN: // é¼ æ ‡å·¦é”®æŒ‰ä¸‹äº‹ä»¶
-                    mouseClick(mouseX, mouseY); // å¤„ç†é¼ æ ‡ç‚¹å‡»äº‹ä»¶
+                case WM_LBUTTONDOWN: // Êó±ê×ó¼ü°´ÏÂÊÂ¼ş
+                    mouseClick(mouseX, mouseY); // ´¦ÀíÊó±êµã»÷ÊÂ¼ş
 
                     break;
-                case WM_MOUSEMOVE: // é¼ æ ‡ç§»åŠ¨äº‹ä»¶
-                    mouseMove(mouseX, mouseY); // å¤„ç†é¼ æ ‡ç§»åŠ¨äº‹ä»¶
+                case WM_MOUSEMOVE: // Êó±êÒÆ¶¯ÊÂ¼ş
+                    mouseMove(mouseX, mouseY); // ´¦ÀíÊó±êÒÆ¶¯ÊÂ¼ş
 
                     break;
                 }
             }
 
-            flushmessage(); // åˆ·æ–°æ¶ˆæ¯é˜Ÿåˆ—ï¼Œå¤„ç†å®Œæ‰€æœ‰æ¶ˆæ¯åç»§ç»­æ‰§è¡Œä¸‹é¢çš„ä»£ç 
+            flushmessage(); // Ë¢ĞÂÏûÏ¢¶ÓÁĞ£¬´¦ÀíÍêËùÓĞÏûÏ¢ºó¼ÌĞøÖ´ĞĞÏÂÃæµÄ´úÂë
 
-            drawMainMenu(); // ç»˜åˆ¶ä¸»èœå•
+            drawMainMenu(); // »æÖÆÖ÷²Ëµ¥
 
-            FlushBatchDraw(); // å°†ç¼“å†²åŒºå†…å®¹æ˜¾ç¤ºåœ¨å±å¹•ä¸Š
+            FlushBatchDraw(); // ½«»º³åÇøÄÚÈİÏÔÊ¾ÔÚÆÁÄ»ÉÏ
             Sleep(1000 / 60);
         }
 
-        EndBatchDraw(); // ç»“æŸæ‰¹é‡ç»˜åˆ¶
+        EndBatchDraw(); // ½áÊøÅúÁ¿»æÖÆ
     }
 
-    // å…³é—­
+    // ¹Ø±Õ
     void close()
     {
-        closegraph(); // å…³é—­å›¾å½¢ç¯å¢ƒ
+        closegraph(); // ¹Ø±ÕÍ¼ĞÎ»·¾³
     }
 };

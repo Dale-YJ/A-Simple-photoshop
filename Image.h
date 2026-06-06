@@ -3,6 +3,7 @@
 */
 
 #pragma once
+#include <iostream>
 #include<vector>
 #include<string>
 #include<Windows.h>
@@ -21,10 +22,11 @@ public:
     enum Type {
         Binary,
         Gray,
-        Color
+        Color,
+        Special
     };
 
-private:
+protected:
     //图像的宽度
     int width = 0;
 
@@ -57,6 +59,8 @@ private:
 
 
 public:
+
+
     Image() = default;
 
     int getwidth() const{
@@ -68,22 +72,18 @@ public:
     int getbitcount()const {
         return bitcount;
     }
-    Type gettype()const {
+    Type getType()const {
         return type;
     }
 
     Image(int w, int h, int bc,Type t)
         : width(w), height(h), bitcount(bc),type(t) {
-        if (width <= 0 || height <= 0)
-            throw "Invalid image size.";
-
-        if (bitcount != 1 && bitcount != 8 &&
-            bitcount != 24 && bitcount != 32)
-            throw "Unsupported bit count.";
+    
 
         data.resize(static_cast<size_t>(width * height * bytesPerPixel()),0);
 
     }
+
 
     //获取像素值
     uint64_t getPixel(int x, int y) const {
@@ -166,8 +166,6 @@ public:
         return value &0xff;
     }
 
-
-
     // 双三次插值权重函数
     static double cubicInterpolation(double x) {
         double absX = fabs(x);
@@ -179,20 +177,16 @@ public:
         }
         return 0.0;
     }
-
-       
-    
+  
     static IMAGE resize(IMAGE* srcImg, int newWidth, int newHeight) {
 
 		float xRatio = (newWidth*1.0/(srcImg->getwidth()*1.0) );
         float yRatio = (newHeight*1.0/(srcImg->getheight()*1.0));
 
-		saveimage(L"temp.jpg", srcImg);
+		saveimage(L"temp.bmp", srcImg);
 
 		IMAGE dstImg (newWidth, newHeight);
-		
-
-        loadimage(&dstImg, L"temp.jpg", newWidth, newHeight);
+        loadimage(&dstImg, L"temp.bmp", newWidth, newHeight);
 
 		return dstImg;
 
@@ -256,8 +250,25 @@ public:
         return dstImg;
     }
 
+    //计算两个图像的均方根误差
+    static double rootMeanSquareError(Image* img1,Image* img2) {
+        double res = 0.0;
+        int w = img1->getwidth();
+        int h = img1->getheight();
+        int sum = 0;
+        for (int j = 0; j < h; ++j) {
+            for (int i = 0; i < w; ++i) {
+                int value1 = img1->getPixel(i, j);
+                int value2 = img2->getPixel(i, j);
+                int error = value1 - value2;
+                sum += (error * error);
 
-    
+            }
+        }
+        res = (sum * 1.0) / (w * h * 1.0);
+        return sqrt(res);
+    }
+
 
     // 将自定义 Image 转换为 EasyX 的 IMAGE
     IMAGE convertToEasyXImage() {
@@ -312,3 +323,48 @@ public:
 
 };
 
+
+
+class SpecialImage:public Image {
+private:
+    int width = 0;
+    int height = 0;
+    vector<vector<double>>* data;
+
+public:
+
+    vector<vector<double>>* getData() const {
+        return data;
+    }
+
+    int getWidth() const {
+        return width;
+    }
+    int getHeight() const {
+        return height;
+    }
+
+
+    ~SpecialImage() {
+        delete data;
+    }
+    SpecialImage() = default;
+    SpecialImage(int w, int h)
+        : width(w), height(h) {
+        data = new vector<vector<double>>(width, vector<double>(height, 0.0));
+		type = Special;
+    }
+
+    double getPixel(int x, int y) const {
+        if (x < 0 || x >= width || y < 0 || y >= height)
+            return 0.0; 
+        return (*data)[x][y];
+    }
+
+    bool setPixel(int x, int y, double value) {
+        if (x < 0 || x >= width || y < 0 || y >= height)
+            return false; // 无效坐标
+        (*data)[x][y] = value;
+        return true;
+    }
+};
