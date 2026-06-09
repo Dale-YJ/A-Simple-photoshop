@@ -72,9 +72,9 @@ public:
     int getbitcount()const {
         return bitcount;
     }
-    Type getType() const {
+    Type getType()const {
         return type;
-	}
+    }
 
     Image(int w, int h, int bc,Type t)
         : width(w), height(h), bitcount(bc),type(t) {
