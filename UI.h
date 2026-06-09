@@ -394,11 +394,12 @@ public:
         onClick.push_back(func13);
         onClick.push_back(func14);
         onClick.push_back(func15);
+        onClick.push_back(func16);
 
 	}
     vector<wstring>name = {L"bmp文件读入",L"bmp文件输出",L"裁减", L"切割", L"gray to binary",
         L"color to gray", L"直方图均衡", L"指数变换增强", L"对数变换增强", L"无损预测编码", L"无损预测解码",
-        L"均匀量化",L"IGS", L"DCT变换编码",L"反DCT变换"};
+        L"均匀量化",L"IGS", L"DCT变换编码",L"反DCT变换",L"均方根误差" };
     
     vector<function<void*(void*,int)>> onClick; // 点击按钮触发的函数族
     // 辅助函数：OTSU自动阈值计算
@@ -1453,6 +1454,42 @@ public:
         return res;
     }
    
+	//均方根误差计算
+    static void* func16(void* image = nullptr, int index = 0) {
+        //整个图像序列
+        vector<Image*>* images = static_cast<vector<Image*>*>(image);
+        wchar_t s[50];          
+        int index1 = 0, index2 = 0;  
+
+        InputBox(s, 50, L"请输入需要对比的两张图片的索引（仅支持灰度图像，用空格分隔，如：1 2）\n");
+
+        if (swscanf_s(s, L"%d %d", &index1, &index2) == 2) {
+            
+            if(index1 <= 0 || index1 > images->size() || index2 <= 0 || index2 > images->size()) {
+                MessageBox(NULL, L"图像索引无效", L"错误", MB_OK | MB_ICONERROR);
+                return nullptr;
+			}
+
+            Image* img1 = (*images)[index1-1];
+            Image* img2 = (*images)[index2-1];
+
+            if (img1->getType() != Image::Gray||img2->getType()!=Image::Gray) {
+                MessageBox(NULL, L"图片类型不支持", L"错误", MB_OK | MB_ICONERROR);
+                return nullptr;
+            }
+
+            double error = Image::rootMeanSquareError(img1, img2);
+            cout << "均方根误差：" << error << endl;
+
+        }
+        else {
+            MessageBox(NULL, L"无效的索引", L"错误", MB_OK | MB_ICONERROR);
+            return nullptr;
+        }
+
+        return nullptr;
+    }
+
 };
 
 
@@ -1678,7 +1715,7 @@ private:
     // 初始化不同模块对应的按钮
     void initModuleButtons() {
 
-		int buttoncounts[] = { 2, 2, 2, 3, 6 }; //每个模块的按钮数量
+		int buttoncounts[] = { 2, 2, 2, 3, 7 }; //每个模块的按钮数量
         Functions f; int k = 0;
         for (int j = 0; j < modules.size(); j++)
         {
