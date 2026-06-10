@@ -142,6 +142,7 @@ SpecialImage EnDecoding::dct(const Image& img, int size, float keepRatio) {
 					}
 					else {
 						//不足size的部分补零
+
 						block[i][j] = 0.0; // 补零
 					}
 				}
