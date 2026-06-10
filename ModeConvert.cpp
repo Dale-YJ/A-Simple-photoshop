@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 using namespace std;
 
@@ -28,107 +29,191 @@ Image ModeConvert::grayToBinaryT(const Image& img, int threshold) {
     return result;
 }
 
-// ======================== 【修改1】误差扩散抖动法 (Floyd-Steinberg) ========================
-// 原代码：使用 Bayer 矩阵的有序抖动
-// 修改后：改为 Floyd-Steinberg 误差扩散抖动算法
-Image ModeConvert::grayToBinaryD(const Image& img, int size) {
-    // 参数 size 在误差扩散中不使用，保留是为了接口兼容
-    if (img.getbitcount() != 8) {
-        std::cerr << "Error: Not a grayscale image" << std::endl;
-        return Image();
-    }
-
-    int width = img.getwidth();
-    int height = img.getheight();
-    Image result(width, height, 1, Image::Binary);
-
-    // 创建浮点数组用于误差扩散（避免整数精度损失）
-    vector<vector<double>> grayData(height, vector<double>(width));
-
-    // 将图像数据复制到浮点数组中
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            grayData[y][x] = img.getPixel(x, y);
-        }
-    }
-
-    // Floyd-Steinberg 误差扩散算法
-    // 误差扩散权重矩阵：
-    //     X   7/16
-    // 3/16 5/16 1/16
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            double oldPixel = grayData[y][x];
-            double newPixel = (oldPixel > 127) ? 255.0 : 0.0;
-            double error = oldPixel - newPixel;
-
-            // 设置结果像素（二值：0或1）
-            result.setPixel(x, y, (newPixel == 255.0) ? 1 : 0);
-
-            // 将误差扩散到相邻的未处理像素
-            // 向右扩散 7/16
-            if (x + 1 < width) {
-                grayData[y][x + 1] += error * 7.0 / 16.0;
-            }
-            // 向左下扩散 3/16
-            if (y + 1 < height && x - 1 >= 0) {
-                grayData[y + 1][x - 1] += error * 3.0 / 16.0;
-            }
-            // 向下扩散 5/16
-            if (y + 1 < height) {
-                grayData[y + 1][x] += error * 5.0 / 16.0;
-            }
-            // 向右下扩散 1/16
-            if (y + 1 < height && x + 1 < width) {
-                grayData[y + 1][x + 1] += error * 1.0 / 16.0;
-            }
-        }
-    }
-
-    std::cout << "Floyd-Steinberg Dither method completed." << std::endl;
-    return result;
+// ======================== 辅助函数：判断是否为2的幂次 ========================
+static bool isPowerOfTwo(int n) {
+    return n > 0 && (n & (n - 1)) == 0;
 }
 
-// ======================== 有序抖动法 (Ordered Dithering) ========================
-// 使用 Bayer 矩阵的有序抖动（保持原实现，这是正确的）
-Image ModeConvert::grayToBinaryOD(const Image& img, int size) {
+// ======================== 辅助函数：生成 n×n 均匀阈值矩阵 ========================
+// 用于 Dither 方法，矩阵值为 0 到 n?-1 的均匀分布
+static vector<vector<int>> generateUniformDitherMatrix(int n) {
+    vector<vector<int>> matrix(n, vector<int>(n));
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            matrix[i][j] = i * n + j;
+        }
+    }
+    return matrix;
+}
+
+// ======================== 辅助函数：递归生成任意 2^k 大小的 Bayer 矩阵 ========================
+// 递归公式：M(2n) = [ 4*M(n) + 0,   4*M(n) + 2 ]
+//                    [ 4*M(n) + 3,   4*M(n) + 1 ]
+static vector<vector<int>> generateBayerMatrix(int n) {
+    vector<vector<int>> matrix(n, vector<int>(n));
+
+    if (n == 1) {
+        matrix[0][0] = 0;
+        return matrix;
+    }
+
+    if (n == 2) {
+        // 2x2 Bayer 矩阵（基础情况）
+        matrix[0][0] = 0;  matrix[0][1] = 2;
+        matrix[1][0] = 3;  matrix[1][1] = 1;
+        return matrix;
+    }
+
+    // 递归生成 n/2 大小的 Bayer 矩阵
+    int half = n / 2;
+    vector<vector<int>> subMatrix = generateBayerMatrix(half);
+
+    // 扩展为 n×n 矩阵
+    for (int i = 0; i < half; i++) {
+        for (int j = 0; j < half; j++) {
+            int val = subMatrix[i][j];
+            matrix[i][j] = 4 * val;      // 左上
+            matrix[i][j + half] = 4 * val + 2;  // 右上
+            matrix[i + half][j] = 4 * val + 3;  // 左下
+            matrix[i + half][j + half] = 4 * val + 1; // 右下
+        }
+    }
+
+    return matrix;
+}
+
+// ======================== 方法2：Dither（抖动法） ========================
+// 算法步骤（根据课件）：
+// 1. 将图像像素值线性映射到 0 ~ size? 范围
+// 2. 将图像放大为 size*W × size*H 的矩阵，每个 size×size 子块填充相同值
+// 3. 用 size×size 的阈值矩阵 D 在放大图像上滑动，进行二值化：
+//    B[i][j] = 1 if A[i][j] > D(x,y) else 0
+Image ModeConvert::grayToBinaryD(const Image& img, int size) {
+    // 检查是否为灰度图像
     if (img.getbitcount() != 8) {
         std::cerr << "Error: Not a grayscale image" << std::endl;
         return Image();
     }
 
+    if (size <= 0) {
+        std::cerr << "Error: Invalid dither matrix size" << std::endl;
+        return Image();
+    }
+
     int width = img.getwidth();
     int height = img.getheight();
-    Image result(width, height, 1, Image::Binary);
 
-    // 8x8 Bayer 矩阵（有序抖动的标准阈值矩阵）
-    int bayer8[8][8] = {
-        {0, 32, 8, 40, 2, 34, 10, 42},
-        {48, 16, 56, 24, 50, 18, 58, 26},
-        {12, 44, 4, 36, 14, 46, 6, 38},
-        {60, 28, 52, 20, 62, 30, 54, 22},
-        {3, 35, 11, 43, 1, 33, 9, 41},
-        {51, 19, 59, 27, 49, 17, 57, 25},
-        {15, 47, 7, 39, 13, 45, 5, 37},
-        {63, 31, 55, 23, 61, 29, 53, 21}
-    };
+    int maxMappedValue = size * size;
 
-    // 确定矩阵大小（只支持 2、4、8，默认使用 8）
-    int matrixSize = (size == 2 || size == 4 || size == 8) ? size : 8;
-    int maxThreshold = matrixSize * matrixSize - 1;  // 最大阈值
+    // 生成均匀阈值矩阵 D (size × size)
+    vector<vector<int>> ditherMatrix = generateUniformDitherMatrix(size);
 
+    // 结果图像（放大 size 倍）
+    Image result(width * size, height * size, 1, Image::Binary);
+
+    // 步骤1: 将原始图像值映射到 0 ~ size? 范围
+    vector<vector<int>> mappedData(height, vector<int>(width));
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             int gray = img.getPixel(x, y);
-            // 根据位置取模获取阈值
-            int threshold = bayer8[y % matrixSize][x % matrixSize];
-            // 将阈值归一化到 0-255 范围
-            int adjThreshold = (threshold * 255) / maxThreshold;
-            result.setPixel(x, y, (gray > adjThreshold) ? 1 : 0);
+            // 线性映射: [0,255] -> [0, maxMappedValue]
+            int mapped = (gray * maxMappedValue) / 255;
+            mappedData[y][x] = mapped;
         }
     }
 
-    std::cout << "Ordered Dither method completed. Matrix size = " << matrixSize << std::endl;
+    // 步骤2 & 3: 对每个原始像素，在其对应的 size×size 子块中进行二值化
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int mappedValue = mappedData[y][x];
+
+            // 当前像素对应的 size×size 子块在结果图像中的位置
+            int blockStartX = x * size;
+            int blockStartY = y * size;
+
+            // 在子块中根据阈值矩阵进行二值化
+            for (int dy = 0; dy < size; dy++) {
+                for (int dx = 0; dx < size; dx++) {
+                    int threshold = ditherMatrix[dy][dx];
+                    // 二值化: 映射值 > 阈值则为白色(1)，否则为黑色(0)
+                    int binaryValue = (mappedValue > threshold) ? 1 : 0;
+                    result.setPixel(blockStartX + dx, blockStartY + dy, binaryValue);
+                }
+            }
+        }
+    }
+
+    std::cout << "Dither method completed. Matrix size = " << size
+        << "x" << size << ", Output image size = "
+        << width * size << "x" << height * size << std::endl;
+    return result;
+}
+
+// ======================== 方法3：Ordered Dither（有序抖动法） ========================
+// 使用 Bayer 矩阵作为阈值矩阵，支持任意 2 的幂次大小的矩阵
+// 算法步骤：
+// 1. 将图像像素值与 Bayer 矩阵对应位置的阈值比较
+// 2. 像素值 > 阈值 则输出白(1)，否则输出黑(0)
+Image ModeConvert::grayToBinaryOD(const Image& img, int size) {
+    // 检查是否为灰度图像
+    if (img.getbitcount() != 8) {
+        std::cerr << "Error: Not a grayscale image" << std::endl;
+        return Image();
+    }
+
+    int matrixSize = size;
+
+    // 检查是否为 2 的幂次
+    if (!isPowerOfTwo(matrixSize)) {
+        // 如果不是 2 的幂次，自动向上取整到最近的 2 的幂次
+        int originalSize = matrixSize;
+        matrixSize = 1;
+        while (matrixSize < originalSize) {
+            matrixSize *= 2;
+        }
+        std::cout << "Warning: Matrix size " << originalSize
+            << " is not a power of 2. Using size " << matrixSize
+            << " instead." << std::endl;
+    }
+
+    // 矩阵大小最小为 1
+    if (matrixSize < 1) matrixSize = 1;
+
+    // 性能提示：矩阵太大时给出警告
+    if (matrixSize > 64) {
+        std::cout << "Warning: Matrix size " << matrixSize
+            << " is large, may affect performance." << std::endl;
+    }
+
+    int width = img.getwidth();
+    int height = img.getheight();
+
+    // 生成 Bayer 阈值矩阵（支持任意 2 的幂次大小）
+    vector<vector<int>> bayerMatrix = generateBayerMatrix(matrixSize);
+    int maxThreshold = matrixSize * matrixSize - 1;
+
+    // 结果图像（与原始图像相同尺寸）
+    Image result(width, height, 1, Image::Binary);
+
+    // 遍历每个像素
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int gray = img.getPixel(x, y);
+
+            // 获取 Bayer 矩阵中的阈值（根据位置取模）
+            int threshold = bayerMatrix[y % matrixSize][x % matrixSize];
+
+            // 将阈值归一化到 0-255 范围
+            int normalizedThreshold = (threshold * 255) / maxThreshold;
+
+            // 二值化：灰度值 > 阈值则为白色(1)，否则为黑色(0)
+            int binaryValue = (gray > normalizedThreshold) ? 1 : 0;
+            result.setPixel(x, y, binaryValue);
+        }
+    }
+
+    std::cout << "Ordered Dither method completed. Bayer matrix size = "
+        << matrixSize << "x" << matrixSize << std::endl;
     return result;
 }
 
@@ -177,7 +262,6 @@ Image ModeConvert::colorToGray(const Image& img) {
             int r = Image::getRedComponent(pixel);
             int g = Image::getGreenComponent(pixel);
             int b = Image::getBlueComponent(pixel);
-            // 【修改2】使用整数运算的亮度公式，避免浮点精度问题
             // 亮度公式：Y = 0.299R + 0.587G + 0.114B
             int luminance = (r * 299 + g * 587 + b * 114) / 1000;
             // 限制范围（防止溢出）
