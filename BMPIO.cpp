@@ -198,6 +198,7 @@ bool BMPIO::write(const std::string& path, const Image& img) {
         return false;
     }
 
+    // 计算每行字节数（必须为4的倍数）
     int rowSize = ((width * bitCount + 31) / 32) * 4;
     int dataSize = rowSize * height;
 
@@ -210,7 +211,7 @@ bool BMPIO::write(const std::string& path, const Image& img) {
     }
 
     MyBitmapFileHeader fileHeader = { 0 };
-    fileHeader.bfType = 0x4D42;
+    fileHeader.bfType = 0x4D42;  // "BM"
     fileHeader.bfOffBits = sizeof(MyBitmapFileHeader) + sizeof(MyBitmapInfoHeader)
         + paletteSize * sizeof(MyRgbQuad);
     fileHeader.bfSize = fileHeader.bfOffBits + dataSize;
@@ -218,7 +219,7 @@ bool BMPIO::write(const std::string& path, const Image& img) {
     MyBitmapInfoHeader infoHeader = { 0 };
     infoHeader.biSize = sizeof(MyBitmapInfoHeader);
     infoHeader.biWidth = width;
-    infoHeader.biHeight = height;
+    infoHeader.biHeight = height;   // 正数表示自底向上存储
     infoHeader.biPlanes = 1;
     infoHeader.biBitCount = static_cast<uint16_t>(bitCount);
     infoHeader.biCompression = 0;
@@ -228,6 +229,7 @@ bool BMPIO::write(const std::string& path, const Image& img) {
     infoHeader.biClrUsed = (bitCount <= 8) ? paletteSize : 0;
     infoHeader.biClrImportant = 0;
 
+    // 写入文件头和信息头
     file.write(reinterpret_cast<const char*>(&fileHeader), sizeof(MyBitmapFileHeader));
     file.write(reinterpret_cast<const char*>(&infoHeader), sizeof(MyBitmapInfoHeader));
 
@@ -236,11 +238,23 @@ bool BMPIO::write(const std::string& path, const Image& img) {
         return false;
     }
 
-    // 写入调色板
+    // ======================== 写入调色板 ========================
     if (bitCount == 1) {
-        MyRgbQuad palette[2] = { 0 };
-        palette[0].rgbBlue = 0;   palette[0].rgbGreen = 0;   palette[0].rgbRed = 0;
-        palette[1].rgbBlue = 255; palette[1].rgbGreen = 255; palette[1].rgbRed = 255;
+        // 1-bit 调色板：索引0=黑色，索引1=白色
+        MyRgbQuad palette[2];
+
+        // 索引0：黑色
+        palette[0].rgbBlue = 0;
+        palette[0].rgbGreen = 0;
+        palette[0].rgbRed = 0;
+        palette[0].rgbReserved = 0;
+
+        // 索引1：白色
+        palette[1].rgbBlue = 255;
+        palette[1].rgbGreen = 255;
+        palette[1].rgbRed = 255;
+        palette[1].rgbReserved = 0;
+
         file.write(reinterpret_cast<const char*>(palette), sizeof(palette));
     }
     else if (bitCount == 8) {
@@ -254,10 +268,12 @@ bool BMPIO::write(const std::string& path, const Image& img) {
         file.write(reinterpret_cast<const char*>(palette.data()), palette.size() * sizeof(MyRgbQuad));
     }
 
-    // 准备像素数据
+    // ======================== 准备像素数据 ========================
     std::vector<uint8_t> bmpData(dataSize, 0);
 
+    // BMP 格式要求：图像数据自底向上存储（第一行是图像的最后一行）
     for (int y = 0; y < height; y++) {
+        // 计算目标行（从底部开始）
         int dstY = height - 1 - y;
         uint8_t* rowData = bmpData.data() + dstY * rowSize;
 
@@ -265,18 +281,20 @@ bool BMPIO::write(const std::string& path, const Image& img) {
             uint32_t pixel = img.getPixel(x, y);
 
             if (bitCount == 1) {
+                // 1-bit 图像：每个 bit 代表一个像素
+                // BMP 格式要求：高位在前（MSB first）
                 int byteIndex = x / 8;
-                int bitOffset = 7 - (x % 8);
-                int r = (pixel >> 16) & 0xFF;
-                int g = (pixel >> 8) & 0xFF;
-                int b = pixel & 0xFF;
-                int luminance = (r * 299 + g * 587 + b * 114) / 1000;
-                if (luminance > 127) {
+                int bitOffset = 7 - (x % 8);  // 字节内高位在左
+
+                // 确保 pixel 是 0 或 1
+                int bitValue = (pixel != 0) ? 1 : 0;
+
+                if (bitValue) {
                     rowData[byteIndex] |= (1 << bitOffset);
                 }
+                // 注意：不需要 else，因为 rowData 已初始化为 0
             }
             else if (bitCount == 8) {
-                // 关键修复：直接存储灰度值
                 rowData[x] = static_cast<uint8_t>(pixel & 0xFF);
             }
             else if (bitCount == 24) {
@@ -285,14 +303,15 @@ bool BMPIO::write(const std::string& path, const Image& img) {
                 rowData[x * 3 + 2] = static_cast<uint8_t>((pixel >> 16) & 0xFF); // R
             }
             else if (bitCount == 32) {
-                rowData[x * 4] = static_cast<uint8_t>(pixel & 0xFF);
-                rowData[x * 4 + 1] = static_cast<uint8_t>((pixel >> 8) & 0xFF);
-                rowData[x * 4 + 2] = static_cast<uint8_t>((pixel >> 16) & 0xFF);
-                rowData[x * 4 + 3] = static_cast<uint8_t>((pixel >> 24) & 0xFF);
+                rowData[x * 4] = static_cast<uint8_t>(pixel & 0xFF);         // B
+                rowData[x * 4 + 1] = static_cast<uint8_t>((pixel >> 8) & 0xFF);  // G
+                rowData[x * 4 + 2] = static_cast<uint8_t>((pixel >> 16) & 0xFF); // R
+                rowData[x * 4 + 3] = static_cast<uint8_t>((pixel >> 24) & 0xFF); // A
             }
         }
     }
 
+    // 写入像素数据
     file.write(reinterpret_cast<const char*>(bmpData.data()), dataSize);
 
     if (file.fail()) {
@@ -301,6 +320,10 @@ bool BMPIO::write(const std::string& path, const Image& img) {
     }
 
     file.close();
+
+    // 调试输出
     std::cout << "Successfully saved: " << path << std::endl;
+    std::cout << "  Format: " << bitCount << "-bit, " << width << "x" << height << std::endl;
+
     return true;
 }

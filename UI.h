@@ -681,10 +681,10 @@ public:
         return resultImages;
     }
     // ======================== func5：灰度转二值（三种方法） ========================
-       // 功能：将灰度图像转换为黑白图像
-       // 方法1：单阈值法 - 允许用户设置阈值
-       // 方法2：Floyd-Steinberg误差扩散抖动法
-       // 方法3：有序抖动法(Ordered Dither) - 允许用户设置矩阵大小
+  // 功能：将灰度图像转换为黑白图像
+  // 方法1：单阈值法 - 允许用户设置阈值
+  // 方法2：Floyd-Steinberg误差扩散抖动法（dither）
+  // 方法3：有序抖动法(Ordered Dither) - 允许用户设置任意矩阵大小
     static void* func5(void* image = nullptr, int index = 0) {
 
         vector<Image*>* images = static_cast<vector<Image*>*>(image);
@@ -717,7 +717,7 @@ public:
             L"║          灰度转二值图像 - 请选择方法                ║\n"
             L"╠══════════════════════════════════════════════════════╣\n"
             L"║  是   - 方法1：单阈值法                              ║\n"
-            L"║  否   - 方法2：Floyd-Steinberg误差扩散抖动法        ║\n"
+            L"║  否   - 方法2：Dither抖动法                          ║\n"
             L"║  取消 - 方法3：有序抖动法(Ordered Dither)           ║\n"
             L"╚══════════════════════════════════════════════════════╝",
             L"选择二值化方法", MB_YESNOCANCEL | MB_ICONQUESTION);
@@ -744,85 +744,147 @@ public:
             wchar_t msgBuf[256];
             swprintf_s(msgBuf, 256, L"单阈值法完成！\n阈值：%d\n\n图像已转换为黑白图像", threshold);
             MessageBox(NULL, msgBuf, L"处理完成", MB_OK | MB_ICONINFORMATION);
-
-            // ==================== 方法2：Floyd-Steinberg误差扩散抖动法 ====================
         }
+        // ==================== 方法2：Dither抖动法 ====================
         else if (methodChoice == IDNO) {
 
             // 显示算法说明
             MessageBox(NULL,
-                L"Floyd-Steinberg误差扩散抖动法\n\n"
+                L"Dither抖动法（均匀阈值抖动）\n\n"
                 L"算法原理：\n"
-                L"将量化误差按权重扩散到相邻的未处理像素：\n"
-                L"    X    7/16\n"
-                L"3/16  5/16  1/16\n\n"
+                L"1. 将像素值线性映射到 0 ~ n² 范围\n"
+                L"2. 将每个像素扩展为 n×n 的子块\n"
+                L"3. 用 n×n 均匀阈值矩阵进行二值化\n\n"
                 L"特点：\n"
-                L"能够保留更多的图像细节\n"
-                L"视觉效果自然，适合有渐变区域的图像\n"
-                L"是目前最常用的抖动算法之一\n\n"
-                L"点击确定开始处理...",
+                L"矩阵越大，输出图像越大（放大n倍）\n"
+                L"能够模拟出灰度层次感\n\n"
+                L"点击确定继续...",
                 L"算法说明", MB_OK);
 
-            // 执行Floyd-Steinberg误差扩散抖动法
-            result = new Image(converter.grayToBinaryD(*srcImg, 0));
+            // 输入矩阵大小
+            wchar_t sizeStr[20];
+            InputBox(sizeStr, 20, L"请输入Dither矩阵大小 n（正整数）\n\n"
+                L"矩阵为 n×n 均匀矩阵（值为 0 到 n²-1）\n"
+                L"输出图像尺寸将放大为原图的 n 倍\n"
+                L"示例：2、3、4、5...", L"4");
 
-            MessageBox(NULL, L"Floyd-Steinberg误差扩散抖动法完成！\n\n图像已转换为黑白图像",
-                L"处理完成", MB_OK | MB_ICONINFORMATION);
+            int matrixSize = _wtoi(sizeStr);
 
-            // ==================== 方法3：有序抖动法 (Ordered Dither) ====================
+            // 参数有效性检查
+            if (matrixSize <= 0) {
+                MessageBox(NULL, L"无效的矩阵大小，将使用默认值 4", L"提示", MB_OK);
+                matrixSize = 4;
+            }
+
+            // 限制最大矩阵大小，防止内存溢出
+            if (matrixSize > 32) {
+                wchar_t confirmMsg[256];
+                swprintf_s(confirmMsg, 256,
+                    L"矩阵大小较大，输出图像尺寸将放大 %d 倍，可能消耗较多内存。\n是否继续？",
+                    matrixSize);
+                int confirm = MessageBox(NULL, confirmMsg, L"确认", MB_YESNO | MB_ICONQUESTION);
+                if (confirm != IDYES) {
+                    return nullptr;
+                }
+            }
+
+            // 执行Dither抖动法
+            result = new Image(converter.grayToBinaryD(*srcImg, matrixSize));
+
+            wchar_t msgBuf[512];
+            swprintf_s(msgBuf, 512, L"Dither抖动法完成！\n\n"
+                L"矩阵大小：%d x %d\n"
+                L"输出图像尺寸：%d x %d\n\n"
+                L"输出图像已被放大，请使用滚动条或窗口调整查看完整图像。",
+                matrixSize, matrixSize,
+                result->getwidth(), result->getheight());
+            MessageBox(NULL, msgBuf, L"处理完成", MB_OK | MB_ICONINFORMATION);
         }
+        // ==================== 方法3：有序抖动法 (Ordered Dither) ====================
         else if (methodChoice == IDCANCEL) {
 
-            // 选择Bayer矩阵大小
-            int matrixChoice = MessageBox(NULL,
-                L"有序抖动法(Ordered Dither) - 请选择Bayer矩阵大小\n\n"
-                L"是   - 2x2矩阵（效果较差，速度快）\n"
-                L"否   - 4x4矩阵（效果中等）\n"
-                L"取消 - 8x8矩阵（效果最好，推荐）",
-                L"选择矩阵大小", MB_YESNOCANCEL | MB_ICONQUESTION);
-
-            int matrixSize = 8;  // 默认8x8
-            const wchar_t* sizeDesc = L"8x8";
-
-            if (matrixChoice == IDYES) {
-                matrixSize = 2;
-                sizeDesc = L"2x2";
-            }
-            else if (matrixChoice == IDNO) {
-                matrixSize = 4;
-                sizeDesc = L"4x4";
-            }
-            else if (matrixChoice == IDCANCEL) {
-                matrixSize = 8;
-                sizeDesc = L"8x8";
-            }
-            else {
-                return nullptr;  // 用户取消
-            }
-
             // 显示算法说明
-            wchar_t infoBuf[512];
-            swprintf_s(infoBuf, 512,
-                L"有序抖动法(Ordered Dither)\n\n"
-                L"Bayer矩阵大小：%s\n\n"
+            MessageBox(NULL,
+                L"有序抖动法(Ordered Dither) - Bayer矩阵\n\n"
                 L"算法原理：\n"
                 L"使用Bayer矩阵作为阈值矩阵，对每个像素进行比较：\n"
-                L"if(像素值 > 阈值) 设为白色 else 设为黑色\n\n"
-                L"特点：\n"
+                L"if(像素值 > 归一化阈值) 设为白色 else 设为黑色\n\n"
+                L"Bayer矩阵特点：\n"
+                L"矩阵大小必须是2的幂次（1,2,4,8,16,32...）\n"
                 L"矩阵越大，图像层次感越好\n"
-                L"适合打印输出场景\n"
-                L"计算速度快\n\n"
-                L"点击确定开始处理...", sizeDesc);
+                L"输出图像尺寸与原图相同\n\n"
+                L"点击确定继续...",
+                L"算法说明", MB_OK);
 
-            MessageBox(NULL, infoBuf, L"算法说明", MB_OK);
+            // 输入矩阵大小
+            wchar_t sizeStr[20];
+            InputBox(sizeStr, 20, L"请输入Bayer矩阵大小 n（正整数）\n\n"
+                L"矩阵为 n×n Bayer矩阵\n"
+                L"推荐大小：2、4、8、16、32\n"
+                L"如果不是2的幂次，将自动向上取整\n"
+                L"示例：2、4、8、16", L"8");
+
+            int matrixSize = _wtoi(sizeStr);
+
+            // 参数有效性检查
+            if (matrixSize <= 0) {
+                MessageBox(NULL, L"无效的矩阵大小，将使用默认值 8", L"提示", MB_OK);
+                matrixSize = 8;
+            }
+
+            // 检查是否为2的幂次
+            bool isPowerOfTwo = (matrixSize > 0 && (matrixSize & (matrixSize - 1)) == 0);
+            int originalSize = matrixSize;
+
+            if (!isPowerOfTwo) {
+                int actualSize = 1;
+                while (actualSize < originalSize) {
+                    actualSize *= 2;
+                }
+
+                wchar_t warnBuf[512];
+                swprintf_s(warnBuf, 512,
+                    L"注意：%d 不是2的幂次，将自动使用 %d x %d Bayer矩阵。\n\n是否继续？",
+                    originalSize, actualSize, actualSize);
+                int confirm = MessageBox(NULL, warnBuf, L"提示", MB_YESNO | MB_ICONQUESTION);
+                if (confirm != IDYES) {
+                    return nullptr;
+                }
+            }
+
+            // 限制最大矩阵大小，防止性能问题
+            if (matrixSize > 64) {
+                wchar_t confirmMsg[256];
+                swprintf_s(confirmMsg, 256,
+                    L"矩阵大小较大（%d x %d），可能影响性能。\n是否继续？",
+                    matrixSize, matrixSize);
+                int confirm = MessageBox(NULL, confirmMsg, L"确认", MB_YESNO | MB_ICONQUESTION);
+                if (confirm != IDYES) {
+                    return nullptr;
+                }
+            }
 
             // 执行有序抖动法
             result = new Image(converter.grayToBinaryOD(*srcImg, matrixSize));
 
-            wchar_t msgBuf[256];
-            swprintf_s(msgBuf, 256, L"有序抖动法完成！\nBayer矩阵大小：%s\n\n图像已转换为黑白图像", sizeDesc);
-            MessageBox(NULL, msgBuf, L"处理完成", MB_OK | MB_ICONINFORMATION);
+            // 计算实际使用的矩阵大小（用于显示）
+            int usedSize = matrixSize;
+            if (!isPowerOfTwo) {
+                usedSize = 1;
+                while (usedSize < matrixSize) {
+                    usedSize *= 2;
+                }
+            }
 
+            wchar_t msgBuf[512];
+            swprintf_s(msgBuf, 512, L"有序抖动法完成！\n\n"
+                L"用户输入矩阵大小：%d x %d\n"
+                L"实际使用Bayer矩阵大小：%d x %d\n"
+                L"输出图像尺寸：%d x %d\n\n"
+                L"矩阵越大，图像层次感越好。",
+                originalSize, originalSize, usedSize, usedSize,
+                result->getwidth(), result->getheight());
+            MessageBox(NULL, msgBuf, L"处理完成", MB_OK | MB_ICONINFORMATION);
         }
         else {
             return nullptr;  // 用户取消
@@ -843,7 +905,7 @@ public:
                         filename = "binary_threshold.bmp";
                     }
                     else if (methodChoice == IDNO) {
-                        filename = "binary_floyd_steinberg.bmp";
+                        filename = "binary_dither.bmp";
                     }
                     else {
                         filename = "binary_ordered_dither.bmp";
